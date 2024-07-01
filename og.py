@@ -27,6 +27,7 @@ def unique_values():
 # Endpoint to query data
 @app.route('/query', methods=['POST'])
 def query():
+    print(request)
     conditions = request.json.get('conditions')
     print(conditions)
     if not conditions:
