@@ -28,6 +28,7 @@ def unique_values():
 @app.route('/query', methods=['POST'])
 def query():
     conditions = request.json.get('conditions')
+    print(conditions)
     if not conditions:
         return jsonify({"error": "Conditions are required"}), 400
     result = query_data(data, conditions)
