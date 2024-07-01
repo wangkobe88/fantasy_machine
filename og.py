@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import pandas as pd
+import json
 
 app = Flask(__name__)
 
@@ -32,6 +33,7 @@ def query():
     print(conditions)
     if not conditions:
         return jsonify({"error": "Conditions are required"}), 400
+    conditions = json.loads(conditions)
     result = query_data(data, conditions)
     return jsonify(result)
 
