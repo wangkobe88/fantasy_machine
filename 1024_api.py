@@ -11,7 +11,7 @@ def csv_to_dict(filename):
         csv_reader = csv.DictReader(file)
         for row in csv_reader:
             number = row['number']
-            url = row['url']
+            url = row['imageurl']
             result_dict[number] = url
     return result_dict
 
