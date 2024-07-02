@@ -64,25 +64,32 @@ def distinct_values():
 @app.route('/query', methods=['GET'])
 def query():
     conditions = request.args.get('conditions')
+    start_index = int(request.args.get('start_index', 0))
     if not conditions:
         return jsonify({"error": "No conditions specified"}), 400
 
-    query = f"SELECT * FROM count WHERE {conditions}"
+    count_query = f"SELECT COUNT(*) FROM count WHERE {conditions}"
+    total_count = query_db(count_query, one=True)[0]
+
+    query = f"SELECT * FROM count WHERE {conditions} LIMIT 100 OFFSET {start_index}"
     results = query_db(query)
 
-    response = [
-        {
-            "number": row[0],
-            "count": row[1],
-            "race": get_race(row[2]),
-            "subrace": row[2],
-            "inscription": row[3],
-            "wallet": row[4],
-            "content": row[5],
-            "url":get_pfp_from_csv_all(row[0])
-        }
-        for row in results
-    ]
+    response = {
+        "total_count": total_count,
+        "data": [
+            {
+                "number": row[0],
+                "count": row[1],
+                "race": get_race(row[2]),
+                "subrace": row[2],
+                "inscription": row[3],
+                "wallet": row[4],
+                "content": row[5],
+                "url":get_pfp_from_csv_all(row[0])
+            }
+            for row in results
+        ]
+    }
     return jsonify(response)
 
 
