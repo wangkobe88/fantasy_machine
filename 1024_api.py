@@ -19,6 +19,7 @@ dictionary_dict = {}
 All_dict = csv_to_dict('./data/pfp_rootverse.csv')
 
 def get_pfp_from_csv_all(num):
+    imageurl = ""
     if num in All_dict:
         imageurl = All_dict[num]
     return imageurl
