@@ -18,11 +18,26 @@ def csv_to_dict(filename):
 dictionary_dict = {}
 All_dict = csv_to_dict('./data/pfp_rootverse.csv')
 
+race_subrace_dict = {
+    "Cultivator": "Human", "Techie":"Human", "Warrior":"Human", "Mage":"Human",
+    "Winged":"Humanoid", "Nightshade":"Humanoid", "Pyronians":"Humanoid", "Frostborn":"Humanoid",
+    "DragonBlood":"Humanoid", "Abyssian":"Humanoid", "StarTraveler":"Humanoid", "Thunder":"Humanoid",
+    "Forestian":"Humanoid", "SoulBinder":"Humanoid",
+    "Succubus":"Demon", "Asura":"Demon",
+    "Zombie":"UnderWorld", "Skeleton":"UnderWorld",
+    "MaleGod":"Deity", "Goddess":"Deity", "DivineWarrior":"Deity", "Loong":"DivineBeast"
+}
 def get_pfp_from_csv_all(num):
     imageurl = ""
     if num in All_dict:
         imageurl = All_dict[num]
     return imageurl
+
+def get_race(subrace):
+    race = ""
+    if subrace in race_subrace_dict:
+        race = race_subrace_dict[subrace]
+    return race
 
 def query_db(query, args=(), one=False):
     con = sqlite3.connect(DATABASE)
@@ -59,10 +74,12 @@ def query():
         {
             "number": row[0],
             "count": row[1],
+            "race": get_race(row[2]),
             "subrace": row[2],
             "inscription": row[3],
             "wallet": row[4],
-            "content": row[5]
+            "content": row[5],
+            "url":get_pfp_from_csv_all(row[0])
         }
         for row in results
     ]
