@@ -40,6 +40,6 @@ def get_table_row_count(database, table_name):
     print(f"Table '{table_name}' contains {row_count} rows.")
 
 if __name__ == "__main__":
-    database = "/home/lighthouse/count.db"  # Replace with your SQLite database file
+    database = "/home/lighthouse/brc1024_website/count.db"  # Replace with your SQLite database file
     table_name = "count"  # Replace with your table name
     get_table_row_count(database, table_name)
