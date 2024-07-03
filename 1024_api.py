@@ -86,7 +86,7 @@ def query():
                 "subrace": row[2],
                 "inscription": row[3],
                 "wallet": row[4],
-                "content": row[5],
+                #"content": row[5],
                 "url":get_pfp_from_csv_all(row[0])
             }
             for row in results
