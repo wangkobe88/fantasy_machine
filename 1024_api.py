@@ -10,7 +10,7 @@ def csv_to_dict(filename):
     with open(filename, mode='r', encoding='utf-8') as file:
         csv_reader = csv.DictReader(file)
         for row in csv_reader:
-            number = int(row['number']) + 1
+            number = int(row['number'])
             url = row['imageurl']
             result_dict[number] = url
     return result_dict
