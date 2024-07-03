@@ -10,7 +10,7 @@ def csv_to_dict(filename):
     with open(filename, mode='r', encoding='utf-8') as file:
         csv_reader = csv.DictReader(file)
         for row in csv_reader:
-            number = row['number']
+            number = row['number'] + 1
             url = row['imageurl']
             result_dict[number] = url
     return result_dict
@@ -31,6 +31,8 @@ def get_pfp_from_csv_all(num):
     imageurl = ""
     if num in All_dict:
         imageurl = All_dict[num]
+    if str(num) in All_dict:
+        imageurl = All_dict[str(num)]
     return imageurl
 
 def get_race(subrace):
