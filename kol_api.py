@@ -18,6 +18,6 @@ def get_userids():
     return jsonify({'userids': userids})  # 直接返回已加载的userid
 
 if __name__ == '__main__':
-    file_path = './data/og.csv'  # 指定你的CSV文件路径
+    file_path = './data/kols.csv'  # 指定你的CSV文件路径
     load_userids_from_csv(file_path)  # 在程序启动时加载CSV数据
     app.run(host='0.0.0.0', port=5002)
