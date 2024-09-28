@@ -47,6 +47,8 @@ def add_tweets():
 # API to get today's tweets
 @app.route('/get_todays_tweets', methods=['GET'])
 def get_todays_tweets():
+    print("..get_todays_tweets")
+
     conn = connect_db()
     cursor = conn.cursor()
 
