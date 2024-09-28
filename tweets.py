@@ -14,6 +14,7 @@ def connect_db():
 # API to insert multiple tweets into the database
 @app.route('/add_tweets', methods=['POST'])
 def add_tweets():
+    print("add tweets")
     data = request.json
     conn = connect_db()
     cursor = conn.cursor()
