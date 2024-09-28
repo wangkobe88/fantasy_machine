@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify
 import sqlite3
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -42,6 +43,40 @@ def add_tweets():
 
     return jsonify({"inserted": inserted_tweets, "skipped": skipped_tweets}), 200
 
+# API to get today's tweets
+@app.route('/get_todays_tweets', methods=['GET'])
+def get_todays_tweets():
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    # Get current date in the format 'Mon Sep 23' from the CreateTime
+    today = datetime.utcnow().strftime('%a %b %d')
+
+    try:
+        # Query to fetch tweets where CreateTime starts with today's date
+        cursor.execute("SELECT * FROM tweets WHERE CreateTime LIKE ?", (f'{today}%',))
+        rows = cursor.fetchall()
+
+        # Transform the result into a list of dictionaries
+        tweets = []
+        for row in rows:
+            tweet = {
+                "ID": row[0],
+                "Title": row[1],
+                "Author": row[2],
+                "CreateTime": row[3],
+                "Link": row[4],
+                "TweetId": row[5],
+                "Score": row[6]
+            }
+            tweets.append(tweet)
+
+        return jsonify({"tweets": tweets}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5003)
