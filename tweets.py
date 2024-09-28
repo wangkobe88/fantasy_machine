@@ -81,5 +81,38 @@ def get_todays_tweets():
     finally:
         conn.close()
 
+
+# API to get the latest 50 tweets, sorted by CreateTime
+@app.route('/get_latest_tweets', methods=['GET'])
+def get_latest_tweets():
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    try:
+        # Query to fetch the latest 50 tweets ordered by CreateTime descending
+        cursor.execute("SELECT * FROM tweets ORDER BY CreateTime DESC LIMIT 50")
+        rows = cursor.fetchall()
+
+        # Transform the result into a list of dictionaries
+        tweets = []
+        for row in rows:
+            tweet = {
+                "ID": row[0],
+                "Title": row[1],
+                "Author": row[2],
+                "CreateTime": row[3],
+                "Link": row[4],
+                "TweetId": row[5],
+                "Score": row[6]
+            }
+            tweets.append(tweet)
+
+        return jsonify({"tweets": tweets}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5003, debug=True)
