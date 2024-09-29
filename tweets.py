@@ -160,9 +160,6 @@ def get_todays_tweets_formated():
     finally:
         conn.close()
 
-if __name__ == '__main__':
-    app.run(debug=True)
-
 
 # API to get the total number of records ordered by CreateTime
 @app.route('/get_total_tweets', methods=['GET'])
