@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, Response
 import sqlite3
 from datetime import datetime, timedelta
 
@@ -123,6 +123,7 @@ def get_todays_tweets_formated():
 
     # Get current date in the format 'Mon Sep 23' from the CreateTime
     today = datetime.utcnow().strftime('%a %b %d')
+    yesterday = (datetime.utcnow() - timedelta(days=1)).strftime('%a %b %d')
 
     try:
         # Query to fetch today's tweets ordered by CreateTime
@@ -130,7 +131,7 @@ def get_todays_tweets_formated():
         rows = cursor.fetchall()
 
         if not rows:
-            return jsonify({"message": "No tweets found for today."}), 200
+            return Response("No tweets found for today.", mimetype='text/plain')
 
         # Build a Twitter-friendly message
         tweet_text = "🔥 今日热门推文 🔥\n\n"  # A catchy header
@@ -141,11 +142,11 @@ def get_todays_tweets_formated():
             tweet_text += f"📌 {title}\n👤 作者: {author}\n🕒 时间: {create_time}\n🔗 链接: {link}\n\n"
             tweet_text += "—" * 30 + "\n\n"  # Separator for readability
 
-        # Twitter allows long threads, so this should fit within one post
-        return jsonify({"tweet_text": tweet_text}), 200
+        # Return as plain text for easy copying and pasting
+        return Response(tweet_text, mimetype='text/plain')
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return Response(f"An error occurred: {str(e)}", mimetype='text/plain', status=500)
     finally:
         conn.close()
 
