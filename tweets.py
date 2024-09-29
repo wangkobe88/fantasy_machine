@@ -114,5 +114,24 @@ def get_latest_tweets():
     finally:
         conn.close()
 
+
+# API to get the total number of records ordered by CreateTime
+@app.route('/get_total_tweets', methods=['GET'])
+def get_total_tweets():
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    try:
+        # Query to get the total number of tweets ordered by CreateTime
+        cursor.execute("SELECT COUNT(*) FROM tweets")
+        total = cursor.fetchone()[0]
+
+        return jsonify({"total_tweets": total}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5003, debug=True)
+    app.run(host='0.0.0.0', port=5003)
