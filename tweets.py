@@ -115,6 +115,54 @@ def get_latest_tweets():
     finally:
         conn.close()
 
+from flask import Flask, jsonify
+import sqlite3
+from datetime import datetime
+
+app = Flask(__name__)
+
+# Database connection
+def connect_db():
+    conn = sqlite3.connect('tweets.db')
+    return conn
+
+# API to get today's tweets formatted for Twitter posting
+@app.route('/get_todays_tweets_formated', methods=['GET'])
+def get_todays_tweets_formated():
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    # Get current date in the format 'Mon Sep 23' from the CreateTime
+    today = datetime.utcnow().strftime('%a %b %d')
+
+    try:
+        # Query to fetch today's tweets ordered by CreateTime
+        cursor.execute("SELECT Title, Author, CreateTime, Link FROM tweets WHERE CreateTime LIKE ?", (f'{today}%',))
+        rows = cursor.fetchall()
+
+        if not rows:
+            return jsonify({"message": "No tweets found for today."}), 200
+
+        # Build a Twitter-friendly message
+        tweet_text = "🔥 今日热门推文 🔥\n\n"  # A catchy header
+        tweet_text += f"日期: {today}\n\n"
+
+        for row in rows:
+            title, author, create_time, link = row
+            tweet_text += f"📌 {title}\n👤 作者: {author}\n🕒 时间: {create_time}\n🔗 链接: {link}\n\n"
+            tweet_text += "—" * 30 + "\n\n"  # Separator for readability
+
+        # Twitter allows long threads, so this should fit within one post
+        return jsonify({"tweet_text": tweet_text}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
 
 # API to get the total number of records ordered by CreateTime
 @app.route('/get_total_tweets', methods=['GET'])
