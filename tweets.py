@@ -115,17 +115,6 @@ def get_latest_tweets():
     finally:
         conn.close()
 
-from flask import Flask, jsonify
-import sqlite3
-from datetime import datetime
-
-app = Flask(__name__)
-
-# Database connection
-def connect_db():
-    conn = sqlite3.connect('tweets.db')
-    return conn
-
 # API to get today's tweets formatted for Twitter posting
 @app.route('/get_todays_tweets_formated', methods=['GET'])
 def get_todays_tweets_formated():
