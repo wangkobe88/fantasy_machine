@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
@@ -54,10 +54,11 @@ def get_todays_tweets():
 
     # Get current date in the format 'Mon Sep 23' from the CreateTime
     today = datetime.utcnow().strftime('%a %b %d')
+    yesterday = (datetime.utcnow() - timedelta(days=1)).strftime('%a %b %d')
 
     try:
         # Query to fetch tweets where CreateTime starts with today's date
-        cursor.execute("SELECT * FROM tweets WHERE CreateTime LIKE ?", (f'{today}%',))
+        cursor.execute("SELECT * FROM tweets WHERE CreateTime LIKE ?", (f'{yesterday}%',))
         rows = cursor.fetchall()
 
         # Transform the result into a list of dictionaries
