@@ -127,7 +127,7 @@ def get_todays_tweets_formated():
 
     try:
         # Query to fetch today's tweets ordered by CreateTime
-        cursor.execute("SELECT Title, Author, CreateTime, Link FROM tweets WHERE CreateTime LIKE ?", (f'{today}%',))
+        cursor.execute("SELECT Title, Author, CreateTime, Link FROM tweets WHERE CreateTime LIKE ?", (f'{yesterday}%',))
         rows = cursor.fetchall()
 
         if not rows:
