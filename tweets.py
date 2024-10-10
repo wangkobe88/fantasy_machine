@@ -4,6 +4,18 @@ from datetime import datetime, timedelta
 
 app = Flask(__name__)
 
+import re
+
+
+def extract_username(url):
+    # 使用正则表达式来匹配URL中的用户名
+    pattern = r"https?://(?:www\.)?x\.com/([^/]+)/status/\d+"
+    match = re.search(pattern, url)
+
+    if match:
+        return match.group(1)
+    else:
+        return None
 
 # Database connection
 def connect_db():
@@ -139,7 +151,8 @@ def get_todays_tweets_formated():
 
         for row in rows:
             title, author, create_time, link = row
-            tweet_text += f"📌 {title}\n👤 作者: {author}\n🕒 时间: {create_time}\n🔗 链接: {link}\n\n"
+            username = extract_username(link)
+            tweet_text += f"📌 {title}\n👤 作者: {author} {username}\n🕒 时间: {create_time}\n🔗 链接: {link}\n\n"
             tweet_text += "—" * 30 + "\n\n"  # Separator for readability
 
         # Return as plain text for easy copying and pasting
