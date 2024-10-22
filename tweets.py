@@ -148,30 +148,51 @@ def get_todays_tweets_formated():
     today = now.strftime('%a %b %d')
     yesterday = (now - timedelta(days=1)).strftime('%a %b %d')
 
+    # 读取 meme_kols.csv 文件
+    meme_kols = {}
+    with open('/home/lighthouse/data/meme_kols.csv', 'r') as f:
+        next(f)  # 跳过标题行
+        for line in f:
+            username, influence = line.strip().split(',')[:2]
+            meme_kols[username.lower()] = influence
+
     try:
-        # 修改 SQL 查询以包含今天和昨天的推文
+        # 修改 SQL 查询以包含今天和昨天的推文，并包括 Score
         if tweet_type:
-            cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType FROM tweets WHERE (CreateTime LIKE ? OR CreateTime LIKE ?) AND TweetType = ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%', tweet_type))
+            cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType, Score FROM tweets WHERE (CreateTime LIKE ? OR CreateTime LIKE ?) AND TweetType = ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%', tweet_type))
         else:
-            cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType FROM tweets WHERE CreateTime LIKE ? OR CreateTime LIKE ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%'))
+            cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType, Score FROM tweets WHERE CreateTime LIKE ? OR CreateTime LIKE ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%'))
         rows = cursor.fetchall()
 
         if not rows:
-            return Response("No tweets found for today or yesterday.", mimetype='text/plain')
+            return Response("今天或昨天没有找到推文。", mimetype='text/plain')
 
         tweet_text = "🔥 最新热门推文 🔥\n\n"
-        tweet_text += f"更新时间: {now.strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n"
+        tweet_text += f"更新时间: {now.strftime('%Y年%m月%d日 %H:%M:%S')} UTC\n\n"
 
         for row in rows:
-            title, author, create_time, link, tweet_type = row
+            title, author, create_time, link, tweet_type, score = row
             username = extract_username(link)
-            tweet_text += f"📌 {title}\n👤 作者: {author} @{username}\n🕒 时间: {create_time}\n🔗 链接: {link}\n📊 类型: {tweet_type}\n\n"
+            influence = meme_kols.get(username.lower(), "未知") if username else "未知"
+            
+            # 将时间转换为 datetime 对象
+            create_time_obj = datetime.strptime(create_time, "%a %b %d %H:%M:%S %z %Y")
+            # 格式化为中文日期时间
+            create_time_cn = create_time_obj.strftime("%Y年%m月%d日 %H:%M:%S")
+            
+            tweet_text += f"📌 {title}\n"
+            tweet_text += f"👤 作者: {author} @{username}\n"
+            tweet_text += f"🕒 时间: {create_time_cn}\n"
+            tweet_text += f"🔗 链接: {link}\n"
+            tweet_text += f"📊 类型: {tweet_type}\n"
+            tweet_text += f"💯 评分: {score}\n"
+            tweet_text += f"🌟 影响力: {influence}\n\n"
             tweet_text += "—" * 30 + "\n\n"
 
         return Response(tweet_text, mimetype='text/plain')
 
     except Exception as e:
-        return Response(f"An error occurred: {str(e)}", mimetype='text/plain', status=500)
+        return Response(f"发生错误: {str(e)}", mimetype='text/plain', status=500)
     finally:
         conn.close()
 
