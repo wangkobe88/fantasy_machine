@@ -27,40 +27,57 @@ def connect_db():
 # API to insert multiple tweets into the database
 @app.route('/add_tweets', methods=['POST'])
 def add_tweets():
-    print("add tweets")
-    data = request.json
-    conn = connect_db()
-    cursor = conn.cursor()
+    print("add_tweets function called")
+    try:
+        data = request.json
+        if not data:
+            print("No JSON data received")
+            return jsonify({"error": "No JSON data received"}), 400
 
-    inserted_tweets = []
-    skipped_tweets = []
+        print(f"Received {len(data)} tweets")
+        conn = connect_db()
+        cursor = conn.cursor()
 
-    for tweet in data:
-        try:
-            # Check if a tweet with the same TweetId and TweetType exists
-            cursor.execute('SELECT TweetId FROM tweets WHERE TweetId = ? AND TweetType = ?', 
-                           (tweet['TweetId'], tweet['TweetType']))
-            result = cursor.fetchone()
+        inserted_tweets = []
+        skipped_tweets = []
 
-            if result:
-                skipped_tweets.append(tweet['TweetId'])
-            else:
-                cursor.execute('''
-                    INSERT INTO tweets (Title, Author, CreateTime, Link, TweetId, Score, TweetType) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                tweet['Title'], tweet['Author'], tweet['CreateTime'], tweet['Link'], 
-                tweet['TweetId'], tweet['Score'], tweet['TweetType']))
-                inserted_tweets.append(tweet['TweetId'])
-        except Exception as e:
-            print(f"Error inserting tweet {tweet['TweetId']}: {str(e)}")
-            conn.rollback()  # 回滚事务
-            return jsonify({"error": f"Error inserting tweet {tweet['TweetId']}: {str(e)}"}), 500
+        for tweet in data:
+            try:
+                print(f"Processing tweet: {tweet.get('TweetId', 'Unknown ID')}")
+                # Check if a tweet with the same TweetId and TweetType exists
+                cursor.execute('SELECT TweetId FROM tweets WHERE TweetId = ? AND TweetType = ?', 
+                               (tweet['TweetId'], tweet['TweetType']))
+                result = cursor.fetchone()
 
-    conn.commit()
-    conn.close()
+                if result:
+                    print(f"Tweet {tweet['TweetId']} already exists, skipping")
+                    skipped_tweets.append(tweet['TweetId'])
+                else:
+                    cursor.execute('''
+                        INSERT INTO tweets (Title, Author, CreateTime, Link, TweetId, Score, TweetType) 
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                    tweet['Title'], tweet['Author'], tweet['CreateTime'], tweet['Link'], 
+                    tweet['TweetId'], tweet['Score'], tweet['TweetType']))
+                    print(f"Tweet {tweet['TweetId']} inserted successfully")
+                    inserted_tweets.append(tweet['TweetId'])
+            except KeyError as ke:
+                print(f"KeyError processing tweet: {ke}")
+                return jsonify({"error": f"Missing key in tweet data: {ke}"}), 400
+            except Exception as e:
+                print(f"Error inserting tweet {tweet.get('TweetId', 'Unknown ID')}: {str(e)}")
+                conn.rollback()
+                return jsonify({"error": f"Error inserting tweet {tweet.get('TweetId', 'Unknown ID')}: {str(e)}"}), 500
 
-    return jsonify({"inserted": inserted_tweets, "skipped": skipped_tweets}), 200
+        conn.commit()
+        conn.close()
+
+        print(f"Operation completed. Inserted: {len(inserted_tweets)}, Skipped: {len(skipped_tweets)}")
+        return jsonify({"inserted": inserted_tweets, "skipped": skipped_tweets}), 200
+
+    except Exception as e:
+        print(f"Unexpected error in add_tweets: {str(e)}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 # API to get today's tweets
 @app.route('/get_todays_tweets', methods=['GET'])
