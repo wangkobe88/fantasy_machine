@@ -150,7 +150,7 @@ def get_todays_tweets_formated():
 
     # 读取 meme_kols.csv 文件
     meme_kols = {}
-    with open('/home/lighthouse/data/meme_kols.csv', 'r') as f:
+    with open('./data/meme_kols.csv', 'r') as f:
         next(f)  # 跳过标题行
         for line in f:
             username, influence = line.strip().split(',')[:2]
