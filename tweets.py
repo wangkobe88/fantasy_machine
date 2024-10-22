@@ -53,7 +53,9 @@ def add_tweets():
                 tweet['TweetId'], tweet['Score'], tweet['TweetType']))
                 inserted_tweets.append(tweet['TweetId'])
         except Exception as e:
-            return jsonify({"error": str(e)}), 500
+            print(f"Error inserting tweet {tweet['TweetId']}: {str(e)}")
+            conn.rollback()  # 回滚事务
+            return jsonify({"error": f"Error inserting tweet {tweet['TweetId']}: {str(e)}"}), 500
 
     conn.commit()
     conn.close()
