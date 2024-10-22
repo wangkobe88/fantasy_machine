@@ -29,7 +29,15 @@ ADD COLUMN TweetType TEXT;
 '''
 
 # Execute the SQL command to add the new column
-cursor.execute(alter_table_query)
+#cursor.execute(alter_table_query)
+
+# SQL command to clear the tweets table
+clear_table_query = '''
+DELETE FROM tweets;
+'''
+
+# Execute the SQL command to clear the table
+cursor.execute(clear_table_query)
 
 # Commit the transaction
 conn.commit()
@@ -37,4 +45,4 @@ conn.commit()
 # Close the connection
 conn.close()
 
-print("Database table created and modified successfully.")
+print("Database table created, modified, and cleared successfully.")
