@@ -1,6 +1,7 @@
 from flask import Flask, request, jsonify, Response
 import sqlite3
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 app = Flask(__name__)
 
@@ -143,8 +144,8 @@ def get_todays_tweets_formated():
     conn = connect_db()
     cursor = conn.cursor()
 
-    # 使用 UTC 时间
-    now = datetime.utcnow()
+    # 使用北京时间
+    now = datetime.now(ZoneInfo("Asia/Shanghai"))
     today = now.strftime('%a %b %d')
     yesterday = (now - timedelta(days=1)).strftime('%a %b %d')
 
@@ -214,7 +215,7 @@ def get_todays_tweets_formated():
         </head>
         <body>
             <h1>🔥 最新热门推文 🔥</h1>
-            <p>更新时间: {now.strftime('%Y年%m月%d日 %H:%M:%S')} UTC</p>
+            <p>更新时间: {now.strftime('%Y年%m月%d日 %H:%M:%S')} 北京时间</p>
         """
 
         for row in rows:
@@ -223,6 +224,7 @@ def get_todays_tweets_formated():
             influence = meme_kols.get(username.lower(), "未知") if username else "未知"
             
             create_time_obj = datetime.strptime(create_time, "%a %b %d %H:%M:%S %z %Y")
+            create_time_obj = create_time_obj.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Asia/Shanghai"))
             create_time_cn = create_time_obj.strftime("%Y年%m月%d日 %H:%M:%S")
             
             html_content += f"""
