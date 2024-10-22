@@ -20,7 +20,16 @@ CREATE TABLE IF NOT EXISTS tweets (
 '''
 
 # Execute the SQL command to create the table
-cursor.execute(create_table_query)
+#cursor.execute(create_table_query)
+
+# SQL command to add a new column TweetType
+alter_table_query = '''
+ALTER TABLE tweets
+ADD COLUMN TweetType TEXT;
+'''
+
+# Execute the SQL command to add the new column
+cursor.execute(alter_table_query)
 
 # Commit the transaction
 conn.commit()
@@ -28,4 +37,4 @@ conn.commit()
 # Close the connection
 conn.close()
 
-"Database table created successfully."
+print("Database table created and modified successfully.")
