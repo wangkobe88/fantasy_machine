@@ -138,6 +138,8 @@ def get_latest_tweets():
 @app.route('/get_todays_tweets_formated', methods=['GET'])
 def get_todays_tweets_formated():
     tweet_type = request.args.get('tweet_type')
+    if tweet_type == "meme":
+        tweet_type = "Meme"
     conn = connect_db()
     cursor = conn.cursor()
 
