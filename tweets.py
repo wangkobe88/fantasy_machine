@@ -165,34 +165,89 @@ def get_todays_tweets_formated():
         rows = cursor.fetchall()
 
         if not rows:
-            return Response("今天或昨天没有找到推文。", mimetype='text/plain')
+            return Response("今天或昨天没有找到推文。", mimetype='text/html')
 
-        tweet_text = "🔥 最新热门推文 🔥\n\n"
-        tweet_text += f"更新时间: {now.strftime('%Y年%m月%d日 %H:%M:%S')} UTC\n\n"
+        html_content = f"""
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>最新热门推文</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }}
+                h1 {{
+                    color: #1da1f2;
+                    text-align: center;
+                }}
+                .tweet {{
+                    background-color: #f8f9fa;
+                    border: 1px solid #e1e8ed;
+                    border-radius: 10px;
+                    padding: 15px;
+                    margin-bottom: 20px;
+                }}
+                .tweet-title {{
+                    font-size: 18px;
+                    font-weight: bold;
+                    margin-bottom: 10px;
+                }}
+                .tweet-info {{
+                    font-size: 14px;
+                    color: #657786;
+                }}
+                .tweet-link {{
+                    color: #1da1f2;
+                    text-decoration: none;
+                }}
+                .tweet-link:hover {{
+                    text-decoration: underline;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>🔥 最新热门推文 🔥</h1>
+            <p>更新时间: {now.strftime('%Y年%m月%d日 %H:%M:%S')} UTC</p>
+        """
 
         for row in rows:
             title, author, create_time, link, tweet_type, score = row
             username = extract_username(link)
             influence = meme_kols.get(username.lower(), "未知") if username else "未知"
             
-            # 将时间转换为 datetime 对象
             create_time_obj = datetime.strptime(create_time, "%a %b %d %H:%M:%S %z %Y")
-            # 格式化为中文日期时间
             create_time_cn = create_time_obj.strftime("%Y年%m月%d日 %H:%M:%S")
             
-            tweet_text += f"📌 {title}\n"
-            tweet_text += f"👤 作者: {author} @{username}\n"
-            tweet_text += f"🕒 时间: {create_time_cn}\n"
-            tweet_text += f"🔗 链接: <a href='{link}' target='_blank'>{link}</a>\n"
-            tweet_text += f"📊 类型: {tweet_type}\n"
-            tweet_text += f"💯 评分: {score}\n"
-            tweet_text += f"🌟 影响力: {influence}\n\n"
-            tweet_text += "—" * 30 + "\n\n"
+            html_content += f"""
+            <div class="tweet">
+                <div class="tweet-title">{title}</div>
+                <div class="tweet-info">
+                    <p>👤 作者: {author} @{username}</p>
+                    <p>🕒 时间: {create_time_cn}</p>
+                    <p>🔗 链接: <a href="{link}" target="_blank" class="tweet-link">{link}</a></p>
+                    <p>📊 类型: {tweet_type}</p>
+                    <p>💯 评分: {score}</p>
+                    <p>🌟 影响力: {influence}</p>
+                </div>
+            </div>
+            """
 
-        return Response(tweet_text, mimetype='text/html')
+        html_content += """
+        </body>
+        </html>
+        """
+
+        return Response(html_content, mimetype='text/html')
 
     except Exception as e:
-        return Response(f"发生错误: {str(e)}", mimetype='text/plain', status=500)
+        return Response(f"<h1>发生错误</h1><p>{str(e)}</p>", mimetype='text/html', status=500)
     finally:
         conn.close()
 
