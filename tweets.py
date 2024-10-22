@@ -157,7 +157,7 @@ def get_todays_tweets_formated():
             meme_kols[username.lower()] = influence
 
     try:
-        # 修改 SQL 查询以包含今天和昨天的推文，并包括 Score
+        # 修改 SQL 查询以包含今天和昨天的推文，并包括 Score，按 CreateTime 降序排序
         if tweet_type:
             cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType, Score FROM tweets WHERE (CreateTime LIKE ? OR CreateTime LIKE ?) AND TweetType = ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%', tweet_type))
         else:
@@ -183,13 +183,13 @@ def get_todays_tweets_formated():
             tweet_text += f"📌 {title}\n"
             tweet_text += f"👤 作者: {author} @{username}\n"
             tweet_text += f"🕒 时间: {create_time_cn}\n"
-            tweet_text += f"🔗 链接: {link}\n"
+            tweet_text += f"🔗 链接: <a href='{link}' target='_blank'>{link}</a>\n"
             tweet_text += f"📊 类型: {tweet_type}\n"
             tweet_text += f"💯 评分: {score}\n"
             tweet_text += f"🌟 影响力: {influence}\n\n"
             tweet_text += "—" * 30 + "\n\n"
 
-        return Response(tweet_text, mimetype='text/plain')
+        return Response(tweet_text, mimetype='text/html')
 
     except Exception as e:
         return Response(f"发生错误: {str(e)}", mimetype='text/plain', status=500)
