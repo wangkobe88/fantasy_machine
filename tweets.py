@@ -141,21 +141,24 @@ def get_todays_tweets_formated():
     conn = connect_db()
     cursor = conn.cursor()
 
-    today = datetime.utcnow().strftime('%a %b %d')
-    yesterday = (datetime.utcnow() - timedelta(days=1)).strftime('%a %b %d')
+    # 使用 UTC 时间
+    now = datetime.utcnow()
+    today = now.strftime('%a %b %d')
+    yesterday = (now - timedelta(days=1)).strftime('%a %b %d')
 
     try:
+        # 修改 SQL 查询以包含今天和昨天的推文
         if tweet_type:
-            cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType FROM tweets WHERE CreateTime LIKE ? AND TweetType = ?", (f'{yesterday}%', tweet_type))
+            cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType FROM tweets WHERE (CreateTime LIKE ? OR CreateTime LIKE ?) AND TweetType = ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%', tweet_type))
         else:
-            cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType FROM tweets WHERE CreateTime LIKE ?", (f'{yesterday}%',))
+            cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType FROM tweets WHERE CreateTime LIKE ? OR CreateTime LIKE ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%'))
         rows = cursor.fetchall()
 
         if not rows:
-            return Response("No tweets found for today.", mimetype='text/plain')
+            return Response("No tweets found for today or yesterday.", mimetype='text/plain')
 
-        tweet_text = "🔥 今日热门推文 🔥\n\n"
-        tweet_text += f"日期: {today}\n\n"
+        tweet_text = "🔥 最新热门推文 🔥\n\n"
+        tweet_text += f"更新时间: {now.strftime('%Y-%m-%d %H:%M:%S')} UTC\n\n"
 
         for row in rows:
             title, author, create_time, link, tweet_type = row
