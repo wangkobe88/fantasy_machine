@@ -142,25 +142,36 @@ def get_todays_tweets_formated():
     # Use UTC time for consistency
     now = datetime.now(ZoneInfo("UTC"))
     today = now.strftime('%Y-%m-%d')
-    yesterday = (now - timedelta(days=1)).strftime('%Y-%m-%d')
+    tomorrow = (now + timedelta(days=1)).strftime('%Y-%m-%d')
 
-    print(f"Querying for tweets from {yesterday} and {today}")
+    print(f"Querying for tweets from {today} and {tomorrow}")
 
     try:
-        # Modify the SQL query to handle the date format in the database
+        # Fetch the latest 200 tweets
         query = """
-        SELECT Content FROM tweets_v2 
-        WHERE strftime('%Y-%m-%d', substr(CreatedAt, 1, 19)) IN (?, ?) 
+        SELECT Content, CreatedAt FROM tweets_v2 
         ORDER BY CreatedAt DESC
+        LIMIT 200
         """
-        cursor.execute(query, (today, yesterday))
+        cursor.execute(query)
         rows = cursor.fetchall()
 
-        print(f"Found {len(rows)} tweets")
+        print(f"Fetched {len(rows)} tweets")
 
-        if not rows:
-            print("No tweets found for today or yesterday")
-            # Add debug query to check data in the database
+        # Filter tweets for today and tomorrow
+        filtered_tweets = []
+        for row in rows:
+            content = json.loads(row[0])
+            created_at = row[1]
+            tweet_date = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y").strftime('%Y-%m-%d')
+            if tweet_date in [today, tomorrow]:
+                filtered_tweets.append(content)
+
+        print(f"Filtered to {len(filtered_tweets)} tweets for today and tomorrow")
+
+        if not filtered_tweets:
+            print("No tweets found for today or tomorrow")
+            # Add debug information
             cursor.execute("SELECT COUNT(*) FROM tweets_v2")
             total_tweets = cursor.fetchone()[0]
             print(f"Total tweets in database: {total_tweets}")
@@ -176,7 +187,7 @@ def get_todays_tweets_formated():
             for tweet in sample_tweets:
                 print(f"ID: {tweet[0]}, Created At: {tweet[1]}, Content preview: {tweet[2]}...")
 
-            return Response("今天或昨天没有找到推文。", mimetype='text/html')
+            return Response("今天或明天没有找到推文。", mimetype='text/html')
 
         html_content = f"""
         <!DOCTYPE html>
@@ -227,8 +238,7 @@ def get_todays_tweets_formated():
             <p>更新时间: {now.strftime('%Y年%m月%d日 %H:%M:%S')} 北京时间</p>
         """
 
-        for row in rows:
-            tweet_data = json.loads(row[0])
+        for tweet_data in filtered_tweets:
             full_text = tweet_data.get('full_text', '')
             name = tweet_data['user']['name']
             screen_name = tweet_data['user']['screen_name']
