@@ -6,7 +6,7 @@ conn = sqlite3.connect('/home/lighthouse/tweets.db')
 # Create a cursor object to execute SQL commands
 cursor = conn.cursor()
 
-# SQL command to create a table with 7 fields
+# Original table creation and modification
 create_table_query = '''
 CREATE TABLE IF NOT EXISTS tweets (
     ID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -19,17 +19,24 @@ CREATE TABLE IF NOT EXISTS tweets (
 );
 '''
 
-# Execute the SQL command to create the table
-#cursor.execute(create_table_query)
-
-# SQL command to add a new column TweetType
 alter_table_query = '''
 ALTER TABLE tweets
 ADD COLUMN TweetType TEXT;
 '''
 
-# Execute the SQL command to add the new column
+# New table creation for tweets_v2
+create_table_v2_query = '''
+CREATE TABLE IF NOT EXISTS tweets_v2 (
+    tweetID TEXT PRIMARY KEY,
+    Content TEXT,
+    CreatedAt TEXT
+);
+'''
+
+# Execute the SQL commands
+#cursor.execute(create_table_query)
 #cursor.execute(alter_table_query)
+cursor.execute(create_table_v2_query)
 
 # SQL command to clear the tweets table
 clear_table_query = '''
@@ -37,7 +44,7 @@ DELETE FROM tweets;
 '''
 
 # Execute the SQL command to clear the table
-cursor.execute(clear_table_query)
+#cursor.execute(clear_table_query)
 
 # Commit the transaction
 conn.commit()
@@ -45,4 +52,4 @@ conn.commit()
 # Close the connection
 conn.close()
 
-print("Database table created, modified, and cleared successfully.")
+print("Database tables created, modified, and cleared successfully.")
