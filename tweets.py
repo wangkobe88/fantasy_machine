@@ -312,7 +312,7 @@ def add_all_tweets():
             print(f"Processing output {i + 1}/{len(data['output'])}")
             print(f"Output content: {output}")
             try:
-                parsed_output = json.loads(output['output'])
+                parsed_output = json.loads(output['output'].replace('```json', ''))
                 print(f"Successfully parsed output {i + 1}")
                 tweets.extend(parsed_output)
             except json.JSONDecodeError as jde:
