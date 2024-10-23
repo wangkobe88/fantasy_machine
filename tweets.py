@@ -313,7 +313,8 @@ def add_all_tweets():
         print(f"Number of output groups: {len(data['output'])}")
         
         tweets = []
-        for output_group in data['output']:
+        parsing_errors = []
+        for i, output_group in enumerate(data['output']):
             if 'output' in output_group:
                 try:
                     # Remove the ```json and ``` from the string if present
@@ -328,12 +329,19 @@ def add_all_tweets():
                     if isinstance(parsed_tweets, list):
                         tweets.extend(parsed_tweets)
                     else:
-                        print(f"Invalid format in output group: expected list, got {type(parsed_tweets)}")
+                        print(f"Invalid format in output group {i}: expected list, got {type(parsed_tweets)}")
+                        parsing_errors.append(f"Invalid format in output group {i}: expected list, got {type(parsed_tweets)}")
                 except json.JSONDecodeError as e:
-                    print(f"JSON parsing error in output group: {e}")
-                    continue
+                    print(f"JSON parsing error in output group {i}: {e}")
+                    parsing_errors.append(f"JSON parsing error in output group {i}: {e}")
+                    print("Problematic JSON string:")
+                    print(json_str)
+                except Exception as e:
+                    print(f"Unexpected error parsing output group {i}: {e}")
+                    parsing_errors.append(f"Unexpected error parsing output group {i}: {e}")
 
         print(f"Total tweets extracted: {len(tweets)}")
+        print(f"Total parsing errors: {len(parsing_errors)}")
 
         conn = connect_db()
         cursor = conn.cursor()
@@ -393,7 +401,8 @@ def add_all_tweets():
             "inserted": inserted_count,
             "skipped": skipped_count,
             "errors": error_count,
-            "error_details": error_details
+            "error_details": error_details,
+            "parsing_errors": parsing_errors
         }), 200
     except Exception as e:
         print(f"Unexpected error in add_all_tweets: {str(e)}")
