@@ -264,7 +264,7 @@ def add_all_tweets():
             print(f"Processing item {item_index + 1}/{len(data['output'])}")
             if item is None:
                 continue
-            if 'data' in item and 'freeBusy' in item['data'] and 'post' in item['data']['freeBusy']:
+            if 'data' in item and 'freeBusy' in item['data'] and item['data']['freeBusy'] is not None and 'post' in item['data']['freeBusy']:
                 tweets = item['data']['freeBusy']['post']
                 print(f"Number of tweets in this item: {len(tweets)}")
                 for tweet_index, tweet in enumerate(tweets):
