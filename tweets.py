@@ -302,17 +302,25 @@ def add_all_tweets():
     print("Entering add_all_tweets function")
     try:
         data = request.json
+        print("Raw received data:")
+        print(json.dumps(data, indent=2))  # Print the raw received data
+        
         if not data or 'output' not in data:
             print("Invalid data format received")
-            print(f"Received data: {data}")
+            print(f"Received data structure: {type(data)}")
             return jsonify({"error": "Invalid data format", "details": "Expected 'output' key in JSON data"}), 400
 
+        print(f"Number of output groups: {len(data['output'])}")
+        
         tweets = []
-        for output_group in data['output']:
+        for i, output_group in enumerate(data['output']):
             if 'output' in output_group and isinstance(output_group['output'], list):
                 tweets.extend(output_group['output'])
+                print(f"Output group {i+1}: {len(output_group['output'])} tweets")
+            else:
+                print(f"Output group {i+1}: Invalid format")
 
-        print(f"Total tweets received: {len(tweets)}")
+        print(f"Total tweets extracted: {len(tweets)}")
 
         conn = connect_db()
         cursor = conn.cursor()
@@ -322,7 +330,6 @@ def add_all_tweets():
         error_count = 0
         error_details = []
 
-        # Print all TweetIds being processed
         print("All TweetIds being processed:")
         for tweet in tweets:
             print(f"TweetId: {tweet.get('TweetId', 'Unknown ID')}")
@@ -332,17 +339,14 @@ def add_all_tweets():
                 tweet_id = tweet.get('TweetId', 'Unknown ID')
                 print(f"Processing tweet {index + 1}/{len(tweets)}: {tweet_id}")
                 
-                # Check if tweet already exists
                 cursor.execute("SELECT TweetId FROM tweets WHERE TweetId = ?", (tweet_id,))
                 if cursor.fetchone():
                     print(f"Tweet {tweet_id} already exists, skipping")
                     skipped_count += 1
                     continue
 
-                # Convert CreateTime to datetime object
                 create_time = datetime.strptime(tweet['CreateTime'], '%a %b %d %H:%M:%S %z %Y')
                 
-                # Insert tweet into database
                 cursor.execute("""
                     INSERT INTO tweets (Title, Author, CreateTime, Link, TweetId, TweetType, Score)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -369,6 +373,9 @@ def add_all_tweets():
                 print(f"Error processing tweet {tweet_id}: {str(e)}")
                 error_count += 1
                 error_details.append(f"Error for tweet {tweet_id}: {str(e)}")
+
+            if (index + 1) % 10 == 0:
+                print(f"Progress: {index + 1}/{len(tweets)} tweets processed")
 
         conn.commit()
         print(f"Operation completed. Inserted: {inserted_count}, Skipped: {skipped_count}, Errors: {error_count}")
