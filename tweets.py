@@ -308,32 +308,9 @@ def add_all_tweets():
             return jsonify({"error": "Invalid data format", "details": "Expected 'output' key in JSON data"}), 400
 
         tweets = []
-        for i, output in enumerate(data['output']):
-            print(f"Processing output {i + 1}/{len(data['output'])}")
-            try:
-                # Remove any JSON formatting characters and leading/trailing whitespace
-                cleaned_output = output['output'].replace('```json', '').replace('```', '').strip()
-                # Try to parse the JSON, if it fails, try to fix common issues
-                try:
-                    parsed_output = json.loads(cleaned_output)
-                except json.JSONDecodeError:
-                    # Try to fix common JSON issues
-                    fixed_output = cleaned_output.replace("'", '"')  # Replace single quotes with double quotes
-                    fixed_output = re.sub(r'(\w+):', r'"\1":', fixed_output)  # Add quotes to keys
-                    fixed_output = re.sub(r',\s*]', ']', fixed_output)  # Remove trailing commas in arrays
-                    fixed_output = re.sub(r',\s*}', '}', fixed_output)  # Remove trailing commas in objects
-                    parsed_output = json.loads(fixed_output)
-                
-                print(f"Successfully parsed output {i + 1}")
-                if isinstance(parsed_output, list):
-                    tweets.extend(parsed_output)
-                else:
-                    tweets.append(parsed_output)
-            except json.JSONDecodeError as jde:
-                print(f"JSON decode error in output {i + 1}: {str(jde)}")
-                print(f"Problematic output content: {output['output']}")
-                # Instead of returning immediately, we'll continue processing other outputs
-                continue
+        for output_group in data['output']:
+            if 'output' in output_group and isinstance(output_group['output'], list):
+                tweets.extend(output_group['output'])
 
         print(f"Total tweets received: {len(tweets)}")
 
