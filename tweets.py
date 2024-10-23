@@ -322,14 +322,20 @@ def add_all_tweets():
         error_count = 0
         error_details = []
 
+        # Print all TweetIds being processed
+        print("All TweetIds being processed:")
+        for tweet in tweets:
+            print(f"TweetId: {tweet.get('TweetId', 'Unknown ID')}")
+
         for index, tweet in enumerate(tweets):
             try:
-                print(f"Processing tweet {index + 1}/{len(tweets)}: {tweet.get('TweetId', 'Unknown ID')}")
+                tweet_id = tweet.get('TweetId', 'Unknown ID')
+                print(f"Processing tweet {index + 1}/{len(tweets)}: {tweet_id}")
                 
                 # Check if tweet already exists
-                cursor.execute("SELECT TweetId FROM tweets WHERE TweetId = ?", (tweet['TweetId'],))
+                cursor.execute("SELECT TweetId FROM tweets WHERE TweetId = ?", (tweet_id,))
                 if cursor.fetchone():
-                    print(f"Tweet {tweet['TweetId']} already exists, skipping")
+                    print(f"Tweet {tweet_id} already exists, skipping")
                     skipped_count += 1
                     continue
 
@@ -345,24 +351,24 @@ def add_all_tweets():
                     tweet['Author'],
                     create_time,
                     tweet['Link'],
-                    tweet['TweetId'],
+                    tweet_id,
                     tweet['TweetType'],
                     tweet['Score']
                 ))
                 inserted_count += 1
-                print(f"Inserted tweet {tweet['TweetId']}")
+                print(f"Inserted tweet {tweet_id}")
             except sqlite3.IntegrityError as ie:
-                print(f"IntegrityError: Tweet {tweet['TweetId']} already exists")
+                print(f"IntegrityError: Tweet {tweet_id} already exists")
                 skipped_count += 1
-                error_details.append(f"IntegrityError for tweet {tweet['TweetId']}: {str(ie)}")
+                error_details.append(f"IntegrityError for tweet {tweet_id}: {str(ie)}")
             except KeyError as ke:
                 print(f"KeyError processing tweet: {ke}")
                 error_count += 1
-                error_details.append(f"KeyError for tweet {tweet.get('TweetId', 'Unknown')}: Missing key {str(ke)}")
+                error_details.append(f"KeyError for tweet {tweet_id}: Missing key {str(ke)}")
             except Exception as e:
-                print(f"Error processing tweet {tweet.get('TweetId', 'Unknown')}: {str(e)}")
+                print(f"Error processing tweet {tweet_id}: {str(e)}")
                 error_count += 1
-                error_details.append(f"Error for tweet {tweet.get('TweetId', 'Unknown')}: {str(e)}")
+                error_details.append(f"Error for tweet {tweet_id}: {str(e)}")
 
         conn.commit()
         print(f"Operation completed. Inserted: {inserted_count}, Skipped: {skipped_count}, Errors: {error_count}")
