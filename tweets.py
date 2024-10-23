@@ -294,5 +294,54 @@ def get_total_tweets():
     finally:
         conn.close()
 
+# API to add all tweets
+@app.route('/add_all_tweets', methods=['POST'])
+def add_all_tweets():
+    try:
+        data = request.json
+        if not data or 'output' not in data:
+            return jsonify({"error": "Invalid data format"}), 400
+
+        tweets = []
+        for output in data['output']:
+            tweets.extend(json.loads(output['output']))
+
+        conn = connect_db()
+        cursor = conn.cursor()
+
+        inserted_count = 0
+        for tweet in tweets:
+            try:
+                # Convert CreateTime to datetime object
+                create_time = datetime.strptime(tweet['CreateTime'], '%a %b %d %H:%M:%S %z %Y')
+                
+                # Insert tweet into database
+                cursor.execute("""
+                    INSERT INTO tweets (Title, Author, CreateTime, Link, TweetId, TweetType, Score)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    tweet['Title'],
+                    tweet['Author'],
+                    create_time,
+                    tweet['Link'],
+                    tweet['TweetId'],
+                    tweet['TweetType'],
+                    tweet['Score']
+                ))
+                inserted_count += 1
+            except sqlite3.IntegrityError:
+                # Skip if the tweet already exists (assuming TweetId is unique)
+                pass
+            except KeyError as ke:
+                print(f"Missing key in tweet data: {ke}")
+
+        conn.commit()
+        return jsonify({"message": f"Successfully added {inserted_count} tweets"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    finally:
+        if 'conn' in locals():
+            conn.close()
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5003)
