@@ -96,38 +96,90 @@ def add_tweets():
 # API to get today's tweets
 @app.route('/get_tweets', methods=['GET'])
 def get_tweets():
-    print("..get_todays_tweets")
-    tweet_type = request.args.get('tweet_type')
-
+    print("get_tweets function called")
     conn = connect_db()
     cursor = conn.cursor()
 
-    yesterday = (datetime.utcnow() - timedelta(days=1)).strftime('%a %b %d')
+    # Use UTC time for consistency
+    now = datetime.now(ZoneInfo("UTC"))
+    today = now.strftime('%Y-%m-%d')
+    tomorrow = (now + timedelta(days=1)).strftime('%Y-%m-%d')
+
+    print(f"Querying for tweets from {today} and {tomorrow}")
+
+    # 读取 meme_kols.csv 文件
+    meme_kols = {}
+    with open('./data/meme_kols.csv', 'r') as f:
+        next(f)  # 跳过标题行
+        for line in f:
+            username, influence = line.strip().split(',')[:2]
+            meme_kols[username.lower()] = influence
 
     try:
-        if tweet_type:
-            cursor.execute("SELECT * FROM tweets WHERE CreateTime LIKE ? AND TweetType = ?", (f'{yesterday}%', tweet_type))
-        else:
-            cursor.execute("SELECT * FROM tweets WHERE CreateTime LIKE ?", (f'{yesterday}%',))
+        # Fetch the latest 500 tweets
+        query = """
+        SELECT Content, CreatedAt FROM tweets_v2 
+        ORDER BY CreatedAt DESC
+        LIMIT 500
+        """
+        cursor.execute(query)
         rows = cursor.fetchall()
 
-        tweets = []
-        for row in rows:
-            tweet = {
-                "ID": row[0],
-                "Title": row[1],
-                "Author": row[2],
-                "CreateTime": row[3],
-                "Link": row[4],
-                "TweetId": row[5],
-                "Score": row[6],
-                "TweetType": row[7]
-            }
-            tweets.append(tweet)
+        print(f"Fetched {len(rows)} tweets")
 
-        return jsonify({"tweets": tweets}), 200
+        # Filter tweets for today and tomorrow
+        filtered_tweets = []
+        for row in rows:
+            content = json.loads(row[0])
+            created_at = row[1]
+            tweet_date = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y").strftime('%Y-%m-%d')
+            if tweet_date in [today, tomorrow]:
+                filtered_tweets.append(content)
+
+        print(f"Filtered to {len(filtered_tweets)} tweets for today and tomorrow")
+
+        if not filtered_tweets:
+            print("No tweets found for today or tomorrow")
+            return jsonify({"error": "No tweets found for today or tomorrow"}), 404
+
+        formatted_tweets = []
+        for tweet_data in filtered_tweets:
+            full_text = tweet_data.get('full_text', '')
+            name = tweet_data['user']['name']
+            screen_name = tweet_data['user']['screen_name']
+            created_at = tweet_data['created_at']
+            tweet_id = tweet_data['rest_id']
+            
+            create_time_obj = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
+            create_time_obj = create_time_obj.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Asia/Shanghai"))
+            create_time_cn = create_time_obj.strftime("%Y年%m月%d日 %H:%M:%S")
+            
+            link = f"https://twitter.com/{screen_name}/status/{tweet_id}"
+            
+            # 获取影响力信息
+            influence = meme_kols.get(screen_name.lower(), "未知")
+            
+            formatted_tweets.append({
+                "text": full_text,
+                "author": {
+                    "name": name,
+                    "screen_name": screen_name
+                },
+                "created_at": create_time_cn,
+                "id": tweet_id,
+                "link": link,
+                "influence": influence
+            })
+
+        return jsonify({
+            "tweets": formatted_tweets,
+            "total": len(formatted_tweets),
+            "updated_at": now.strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
 
     except Exception as e:
+        print(f"Error in get_tweets: {str(e)}")
+        print(f"Full traceback: {traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
