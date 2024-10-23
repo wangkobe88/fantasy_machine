@@ -144,12 +144,27 @@ def get_todays_tweets_formated():
     today = now.strftime('%Y-%m-%d')
     yesterday = (now - timedelta(days=1)).strftime('%Y-%m-%d')
 
+    print(f"Querying for tweets from {yesterday} and {today}")
+
     try:
         # 修改 SQL 查询以包含今天和昨天的推文，按 CreatedAt 降序排序
-        cursor.execute("SELECT Content FROM tweets_v2 WHERE date(CreatedAt) IN (?, ?) ORDER BY CreatedAt DESC", (today, yesterday))
+        query = "SELECT Content FROM tweets_v2 WHERE date(CreatedAt) IN (?, ?) ORDER BY CreatedAt DESC"
+        cursor.execute(query, (today, yesterday))
         rows = cursor.fetchall()
 
+        print(f"Found {len(rows)} tweets")
+
         if not rows:
+            print("No tweets found for today or yesterday")
+            # 添加调试查询，检查数据库中的数据
+            cursor.execute("SELECT COUNT(*) FROM tweets_v2")
+            total_tweets = cursor.fetchone()[0]
+            print(f"Total tweets in database: {total_tweets}")
+            
+            cursor.execute("SELECT MIN(CreatedAt), MAX(CreatedAt) FROM tweets_v2")
+            min_date, max_date = cursor.fetchone()
+            print(f"Date range in database: from {min_date} to {max_date}")
+
             return Response("今天或昨天没有找到推文。", mimetype='text/html')
 
         html_content = f"""
@@ -234,6 +249,8 @@ def get_todays_tweets_formated():
         return Response(html_content, mimetype='text/html')
 
     except Exception as e:
+        print(f"Error in get_todays_tweets_formated: {str(e)}")
+        print(f"Full traceback: {traceback.format_exc()}")
         return Response(f"<h1>发生错误</h1><p>{str(e)}</p>", mimetype='text/html', status=500)
     finally:
         conn.close()
