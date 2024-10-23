@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import json
+import traceback
 
 app = Flask(__name__)
 app.config['DEBUG'] = True  # Enable debug mode
@@ -319,9 +320,13 @@ def add_all_tweets():
     print("add_all_tweets function called")
     try:
         data = request.json
+        print(f"Received data: {json.dumps(data, indent=2)[:1000]}...")  # Print first 1000 characters of received data
+
         if not data or 'output' not in data:
             print("Invalid JSON data received")
             return jsonify({"error": "Invalid JSON data received"}), 400
+
+        print(f"Number of items in output: {len(data['output'])}")
 
         conn = connect_db()
         cursor = conn.cursor()
@@ -330,17 +335,23 @@ def add_all_tweets():
         skipped_tweets = []
         error_tweets = []
 
-        for item in data['output']:
+        for item_index, item in enumerate(data['output']):
+            print(f"Processing item {item_index + 1}/{len(data['output'])}")
             if 'data' in item and 'freeBusy' in item['data'] and 'post' in item['data']['freeBusy']:
                 tweets = item['data']['freeBusy']['post']
-                for tweet in tweets:
+                print(f"Number of tweets in this item: {len(tweets)}")
+                for tweet_index, tweet in enumerate(tweets):
                     try:
                         tweet_id = tweet.get('rest_id')
                         if not tweet_id:
+                            print(f"Missing tweet ID for tweet {tweet_index + 1} in item {item_index + 1}")
                             raise ValueError("Missing tweet ID")
 
                         content = json.dumps(tweet)
                         created_at = tweet.get('created_at')
+
+                        print(f"Processing tweet {tweet_index + 1}/{len(tweets)} in item {item_index + 1}")
+                        print(f"Tweet ID: {tweet_id}, Created At: {created_at}")
 
                         # Check if a tweet with the same tweetID exists
                         cursor.execute('SELECT tweetID FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
@@ -358,8 +369,11 @@ def add_all_tweets():
                             inserted_tweets.append(tweet_id)
 
                     except Exception as e:
-                        print(f"Error processing tweet: {str(e)}")
+                        print(f"Error processing tweet {tweet_index + 1} in item {item_index + 1}: {str(e)}")
+                        print(f"Tweet data: {json.dumps(tweet, indent=2)}")
                         error_tweets.append(tweet_id if tweet_id else "Unknown ID")
+            else:
+                print(f"Item {item_index + 1} does not contain expected data structure")
 
         conn.commit()
         conn.close()
@@ -377,6 +391,7 @@ def add_all_tweets():
 
     except Exception as e:
         print(f"Unexpected error in add_all_tweets: {str(e)}")
+        print(f"Full traceback: {traceback.format_exc()}")
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 if __name__ == '__main__':
