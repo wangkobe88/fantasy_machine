@@ -151,7 +151,7 @@ def get_todays_tweets_formated():
         query = """
         SELECT Content, CreatedAt FROM tweets_v2 
         ORDER BY CreatedAt DESC
-        LIMIT 200
+        LIMIT 500
         """
         cursor.execute(query)
         rows = cursor.fetchall()
