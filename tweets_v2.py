@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 import json
 
 app = Flask(__name__)
+app.config['DEBUG'] = True  # Enable debug mode
 
 import re
 
@@ -42,11 +43,14 @@ def add_tweets():
         inserted_tweets = []
         skipped_tweets = []
 
-        for tweet in data:
+        for index, tweet in enumerate(data):
             try:
+                print(f"Processing tweet {index + 1}/{len(data)}")
                 tweet_id = tweet['rest_id']
                 content = json.dumps(tweet)  # Convert the entire tweet object to a JSON string
                 created_at = tweet.get('created_at')
+
+                print(f"Tweet ID: {tweet_id}, Created At: {created_at}")
 
                 # Check if a tweet with the same tweetID exists
                 cursor.execute('SELECT tweetID FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
@@ -63,10 +67,12 @@ def add_tweets():
                     print(f"Tweet {tweet_id} inserted successfully")
                     inserted_tweets.append(tweet_id)
             except KeyError as ke:
-                print(f"KeyError processing tweet: {ke}")
+                print(f"KeyError processing tweet {index + 1}: {ke}")
+                print(f"Tweet data: {tweet}")
                 return jsonify({"error": f"Missing key in tweet data: {ke}"}), 400
             except Exception as e:
                 print(f"Error inserting tweet {tweet.get('rest_id', 'Unknown ID')}: {str(e)}")
+                print(f"Tweet data: {tweet}")
                 conn.rollback()
                 return jsonify({"error": f"Error inserting tweet {tweet.get('rest_id', 'Unknown ID')}: {str(e)}"}), 500
 
@@ -74,7 +80,13 @@ def add_tweets():
         conn.close()
 
         print(f"Operation completed. Inserted: {len(inserted_tweets)}, Skipped: {len(skipped_tweets)}")
-        return jsonify({"inserted": inserted_tweets, "skipped": skipped_tweets}), 200
+        return jsonify({
+            "inserted": inserted_tweets, 
+            "skipped": skipped_tweets,
+            "total_processed": len(data),
+            "total_inserted": len(inserted_tweets),
+            "total_skipped": len(skipped_tweets)
+        }), 200
 
     except Exception as e:
         print(f"Unexpected error in add_tweets: {str(e)}")
@@ -302,4 +314,4 @@ def get_tweets():
         conn.close()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5004)
+    app.run(host='0.0.0.0', port=5004, debug=True)
