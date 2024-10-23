@@ -313,12 +313,25 @@ def add_all_tweets():
         print(f"Number of output groups: {len(data['output'])}")
         
         tweets = []
-        for i, output_group in enumerate(data['output']):
-            if 'output' in output_group and isinstance(output_group['output'], list):
-                tweets.extend(output_group['output'])
-                print(f"Output group {i+1}: {len(output_group['output'])} tweets")
-            else:
-                print(f"Output group {i+1}: Invalid format")
+        for output_group in data['output']:
+            if 'output' in output_group:
+                try:
+                    # Remove the ```json and ``` from the string if present
+                    json_str = output_group['output'].strip()
+                    if json_str.startswith('```json'):
+                        json_str = json_str[7:]
+                    if json_str.endswith('```'):
+                        json_str = json_str[:-3]
+                    
+                    # Parse the JSON string
+                    parsed_tweets = json.loads(json_str)
+                    if isinstance(parsed_tweets, list):
+                        tweets.extend(parsed_tweets)
+                    else:
+                        print(f"Invalid format in output group: expected list, got {type(parsed_tweets)}")
+                except json.JSONDecodeError as e:
+                    print(f"JSON parsing error in output group: {e}")
+                    continue
 
         print(f"Total tweets extracted: {len(tweets)}")
 
@@ -329,10 +342,6 @@ def add_all_tweets():
         skipped_count = 0
         error_count = 0
         error_details = []
-
-        print("All TweetIds being processed:")
-        for tweet in tweets:
-            print(f"TweetId: {tweet.get('TweetId', 'Unknown ID')}")
 
         for index, tweet in enumerate(tweets):
             try:
