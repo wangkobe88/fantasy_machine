@@ -93,6 +93,22 @@ def add_tweets():
         print(f"Unexpected error in add_tweets: {str(e)}")
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
+def get_influence_level(influence):
+    try:
+        influence_value = int(influence)
+        if influence_value == 1:
+            return "低"
+        elif influence_value == 2:
+            return "中"
+        elif influence_value == 3:
+            return "高"
+        elif influence_value > 3:
+            return "超高"
+        else:
+            return "未知"
+    except ValueError:
+        return "未知"
+
 # API to get today's tweets
 @app.route('/get_tweets', methods=['GET'])
 def get_tweets():
@@ -145,7 +161,13 @@ def get_tweets():
         formatted_tweets = []
         for tweet_data in filtered_tweets:
             full_text = tweet_data.get('full_text', '')
+            # 解码 full_text
+            full_text = full_text.encode().decode('unicode_escape')
+            
             name = tweet_data['user']['name']
+            # 解码 name
+            name = name.encode().decode('unicode_escape')
+            
             screen_name = tweet_data['user']['screen_name']
             created_at = tweet_data['created_at']
             tweet_id = tweet_data['rest_id']
@@ -156,8 +178,9 @@ def get_tweets():
             
             link = f"https://twitter.com/{screen_name}/status/{tweet_id}"
             
-            # 获取影响力信息
+            # 获取影响力信息并转换
             influence = meme_kols.get(screen_name.lower(), "未知")
+            influence_level = get_influence_level(influence)
             
             formatted_tweets.append({
                 "text": full_text,
@@ -168,7 +191,7 @@ def get_tweets():
                 "created_at": create_time_cn,
                 "id": tweet_id,
                 "link": link,
-                "influence": influence
+                "influence": influence_level
             })
 
         return jsonify({
@@ -300,7 +323,13 @@ def get_tweets_formated():
 
         for tweet_data in filtered_tweets:
             full_text = tweet_data.get('full_text', '')
+            # 解码 full_text
+            full_text = full_text.encode().decode('unicode_escape')
+            
             name = tweet_data['user']['name']
+            # 解码 name
+            name = name.encode().decode('unicode_escape')
+            
             screen_name = tweet_data['user']['screen_name']
             created_at = tweet_data['created_at']
             tweet_id = tweet_data['rest_id']
@@ -311,8 +340,9 @@ def get_tweets_formated():
             
             link = f"https://twitter.com/{screen_name}/status/{tweet_id}"
             
-            # 获取影响力信息
+            # 获取影响力信息并转换
             influence = meme_kols.get(screen_name.lower(), "未知")
+            influence_level = get_influence_level(influence)
             
             html_content += f"""
             <div class="tweet">
@@ -321,7 +351,7 @@ def get_tweets_formated():
                     <p>👤 作者: {name} @{screen_name}</p>
                     <p>🕒 时间: {create_time_cn}</p>
                     <p>🔗 链接: <a href="{link}" target="_blank" class="tweet-link">{link}</a></p>
-                    <p>🌟 影响力: {influence}</p>
+                    <p>🌟 影响力: {influence_level}</p>
                 </div>
             </div>
             """
