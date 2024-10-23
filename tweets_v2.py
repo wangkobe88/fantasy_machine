@@ -139,16 +139,20 @@ def get_todays_tweets_formated():
     conn = connect_db()
     cursor = conn.cursor()
 
-    # 使用北京时间
-    now = datetime.now(ZoneInfo("Asia/Shanghai"))
+    # Use UTC time for consistency
+    now = datetime.now(ZoneInfo("UTC"))
     today = now.strftime('%Y-%m-%d')
     yesterday = (now - timedelta(days=1)).strftime('%Y-%m-%d')
 
     print(f"Querying for tweets from {yesterday} and {today}")
 
     try:
-        # 修改 SQL 查询以包含今天和昨天的推文，按 CreatedAt 降序排序
-        query = "SELECT Content FROM tweets_v2 WHERE date(CreatedAt) IN (?, ?) ORDER BY CreatedAt DESC"
+        # Modify the SQL query to handle the date format in the database
+        query = """
+        SELECT Content FROM tweets_v2 
+        WHERE strftime('%Y-%m-%d', substr(CreatedAt, 1, 19)) IN (?, ?) 
+        ORDER BY CreatedAt DESC
+        """
         cursor.execute(query, (today, yesterday))
         rows = cursor.fetchall()
 
@@ -156,7 +160,7 @@ def get_todays_tweets_formated():
 
         if not rows:
             print("No tweets found for today or yesterday")
-            # 添加调试查询，检查数据库中的数据
+            # Add debug query to check data in the database
             cursor.execute("SELECT COUNT(*) FROM tweets_v2")
             total_tweets = cursor.fetchone()[0]
             print(f"Total tweets in database: {total_tweets}")
