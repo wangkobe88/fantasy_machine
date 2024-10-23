@@ -310,9 +310,10 @@ def add_all_tweets():
         tweets = []
         for i, output in enumerate(data['output']):
             print(f"Processing output {i + 1}/{len(data['output'])}")
-            print(f"Output content: {output}")
             try:
-                parsed_output = json.loads(output['output'].replace('```json', ''))
+                # Remove any JSON formatting characters and leading/trailing whitespace
+                cleaned_output = output['output'].replace('```json', '').strip()
+                parsed_output = json.loads(cleaned_output)
                 print(f"Successfully parsed output {i + 1}")
                 tweets.extend(parsed_output)
             except json.JSONDecodeError as jde:
@@ -321,7 +322,8 @@ def add_all_tweets():
                 return jsonify({
                     "error": "JSON decode error",
                     "details": str(jde),
-                    "problematic_output": output['output']
+                    "problematic_output": output['output'],
+                    "output_index": i
                 }), 400
 
         print(f"Total tweets received: {len(tweets)}")
