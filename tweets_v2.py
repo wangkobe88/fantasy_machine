@@ -133,41 +133,6 @@ def get_todays_tweets():
         conn.close()
 
 
-# API to get the latest 50 tweets, sorted by CreateTime
-@app.route('/get_latest_tweets', methods=['GET'])
-def get_latest_tweets():
-    tweet_type = request.args.get('tweet_type')
-    conn = connect_db()
-    cursor = conn.cursor()
-
-    try:
-        if tweet_type:
-            cursor.execute("SELECT * FROM tweets WHERE TweetType = ? ORDER BY CreateTime DESC LIMIT 50", (tweet_type,))
-        else:
-            cursor.execute("SELECT * FROM tweets ORDER BY CreateTime DESC LIMIT 50")
-        rows = cursor.fetchall()
-
-        tweets = []
-        for row in rows:
-            tweet = {
-                "ID": row[0],
-                "Title": row[1],
-                "Author": row[2],
-                "CreateTime": row[3],
-                "Link": row[4],
-                "TweetId": row[5],
-                "Score": row[6],
-                "TweetType": row[7]
-            }
-            tweets.append(tweet)
-
-        return jsonify({"tweets": tweets}), 200
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
-
 # API to get today's tweets formatted for Twitter posting
 @app.route('/get_todays_tweets_formated', methods=['GET'])
 def get_todays_tweets_formated():
@@ -274,46 +239,6 @@ def get_todays_tweets_formated():
         conn.close()
 
 
-# API to get tweets from the last N days
-@app.route('/get_tweets', methods=['GET'])
-def get_tweets():
-    try:
-        days = int(request.args.get('days', 1))
-        conn = connect_db()
-        cursor = conn.cursor()
-
-        # Calculate the date N days ago
-        n_days_ago = (datetime.now(ZoneInfo("UTC")) - timedelta(days=days)).isoformat()
-
-        cursor.execute("SELECT Content FROM tweets_v2 WHERE CreatedAt > ?", (n_days_ago,))
-        rows = cursor.fetchall()
-
-        processed_tweets = []
-        for row in rows:
-            tweet_data = json.loads(row[0])
-            
-            # Process the tweet data
-            processed_tweet = {
-                "created_at": tweet_data.get("created_at"),
-                "favorite_count": tweet_data.get("favorite_count"),
-                "full_text": tweet_data.get("full_text"),
-                "rest_id": tweet_data.get("rest_id"),
-                "retweet_count": tweet_data.get("retweet_count"),
-                "user": tweet_data.get("user"),
-                "Link": f"https://twitter.com/{tweet_data['user']['screen_name']}/status/{tweet_data['rest_id']}"
-            }
-            
-            processed_tweets.append(processed_tweet)
-
-        return jsonify({"tweets": processed_tweets}), 200
-
-    except ValueError:
-        return jsonify({"error": "Invalid 'days' parameter. Must be an integer."}), 400
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-    finally:
-        conn.close()
-
 # API to add all tweets
 @app.route('/add_all_tweets', methods=['POST'])
 def add_all_tweets():
@@ -337,6 +262,8 @@ def add_all_tweets():
 
         for item_index, item in enumerate(data['output']):
             print(f"Processing item {item_index + 1}/{len(data['output'])}")
+            if item is None:
+                continue
             if 'data' in item and 'freeBusy' in item['data'] and 'post' in item['data']['freeBusy']:
                 tweets = item['data']['freeBusy']['post']
                 print(f"Number of tweets in this item: {len(tweets)}")
@@ -396,3 +323,4 @@ def add_all_tweets():
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5004, debug=True)
+
