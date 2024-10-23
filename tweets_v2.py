@@ -94,8 +94,8 @@ def add_tweets():
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 # API to get today's tweets
-@app.route('/get_todays_tweets', methods=['GET'])
-def get_todays_tweets():
+@app.route('/get_tweets', methods=['GET'])
+def get_tweets():
     print("..get_todays_tweets")
     tweet_type = request.args.get('tweet_type')
 
@@ -134,8 +134,8 @@ def get_todays_tweets():
 
 
 # API to get today's tweets formatted for Twitter posting
-@app.route('/get_todays_tweets_formated', methods=['GET'])
-def get_todays_tweets_formated():
+@app.route('/get_tweets_formated', methods=['GET'])
+def get_tweets_formated():
     conn = connect_db()
     cursor = conn.cursor()
 
@@ -145,6 +145,14 @@ def get_todays_tweets_formated():
     tomorrow = (now + timedelta(days=1)).strftime('%Y-%m-%d')
 
     print(f"Querying for tweets from {today} and {tomorrow}")
+
+    # 读取 meme_kols.csv 文件
+    meme_kols = {}
+    with open('./data/meme_kols.csv', 'r') as f:
+        next(f)  # 跳过标题行
+        for line in f:
+            username, influence = line.strip().split(',')[:2]
+            meme_kols[username.lower()] = influence
 
     try:
         # Fetch the latest 200 tweets
@@ -251,6 +259,9 @@ def get_todays_tweets_formated():
             
             link = f"https://twitter.com/{screen_name}/status/{tweet_id}"
             
+            # 获取影响力信息
+            influence = meme_kols.get(screen_name.lower(), "未知")
+            
             html_content += f"""
             <div class="tweet">
                 <div class="tweet-text">{full_text}</div>
@@ -258,6 +269,7 @@ def get_todays_tweets_formated():
                     <p>👤 作者: {name} @{screen_name}</p>
                     <p>🕒 时间: {create_time_cn}</p>
                     <p>🔗 链接: <a href="{link}" target="_blank" class="tweet-link">{link}</a></p>
+                    <p>🌟 影响力: {influence}</p>
                 </div>
             </div>
             """
