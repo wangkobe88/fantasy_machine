@@ -169,6 +169,13 @@ def get_todays_tweets_formated():
             min_date, max_date = cursor.fetchone()
             print(f"Date range in database: from {min_date} to {max_date}")
 
+            # Add a query to fetch a few sample tweets
+            cursor.execute("SELECT tweetID, CreatedAt, substr(Content, 1, 100) FROM tweets_v2 ORDER BY CreatedAt DESC LIMIT 5")
+            sample_tweets = cursor.fetchall()
+            print("Sample tweets:")
+            for tweet in sample_tweets:
+                print(f"ID: {tweet[0]}, Created At: {tweet[1]}, Content preview: {tweet[2]}...")
+
             return Response("今天或昨天没有找到推文。", mimetype='text/html')
 
         html_content = f"""
