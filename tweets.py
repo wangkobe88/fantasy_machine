@@ -299,15 +299,20 @@ def get_total_tweets():
 # API to add all tweets
 @app.route('/add_all_tweets', methods=['POST'])
 def add_all_tweets():
+    print("Entering add_all_tweets function")
     try:
         data = request.json
         if not data or 'output' not in data:
             print("Invalid data format received")
-            return jsonify({"error": "Invalid data format"}), 400
+            return jsonify({"error": "Invalid data format", "details": "Expected 'output' key in JSON data"}), 400
 
         tweets = []
         for output in data['output']:
-            tweets.extend(json.loads(output['output']))
+            try:
+                tweets.extend(json.loads(output['output']))
+            except json.JSONDecodeError as jde:
+                print(f"JSON decode error: {str(jde)}")
+                return jsonify({"error": "JSON decode error", "details": str(jde)}), 400
 
         print(f"Total tweets received: {len(tweets)}")
 
@@ -317,9 +322,12 @@ def add_all_tweets():
         inserted_count = 0
         skipped_count = 0
         error_count = 0
+        error_details = []
 
-        for tweet in tweets:
+        for index, tweet in enumerate(tweets):
             try:
+                print(f"Processing tweet {index + 1}/{len(tweets)}: {tweet.get('TweetId', 'Unknown ID')}")
+                
                 # Check if tweet already exists
                 cursor.execute("SELECT TweetId FROM tweets WHERE TweetId = ?", (tweet['TweetId'],))
                 if cursor.fetchone():
@@ -345,15 +353,18 @@ def add_all_tweets():
                 ))
                 inserted_count += 1
                 print(f"Inserted tweet {tweet['TweetId']}")
-            except sqlite3.IntegrityError:
+            except sqlite3.IntegrityError as ie:
                 print(f"IntegrityError: Tweet {tweet['TweetId']} already exists")
                 skipped_count += 1
+                error_details.append(f"IntegrityError for tweet {tweet['TweetId']}: {str(ie)}")
             except KeyError as ke:
                 print(f"KeyError processing tweet: {ke}")
                 error_count += 1
+                error_details.append(f"KeyError for tweet {tweet.get('TweetId', 'Unknown')}: Missing key {str(ke)}")
             except Exception as e:
                 print(f"Error processing tweet {tweet.get('TweetId', 'Unknown')}: {str(e)}")
                 error_count += 1
+                error_details.append(f"Error for tweet {tweet.get('TweetId', 'Unknown')}: {str(e)}")
 
         conn.commit()
         print(f"Operation completed. Inserted: {inserted_count}, Skipped: {skipped_count}, Errors: {error_count}")
@@ -361,14 +372,21 @@ def add_all_tweets():
             "message": f"Operation completed",
             "inserted": inserted_count,
             "skipped": skipped_count,
-            "errors": error_count
+            "errors": error_count,
+            "error_details": error_details
         }), 200
     except Exception as e:
         print(f"Unexpected error in add_all_tweets: {str(e)}")
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+        traceback.print_exc()  # This will print the full traceback
+        return jsonify({
+            "error": "Unexpected error",
+            "details": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
     finally:
         if 'conn' in locals():
             conn.close()
+        print("Exiting add_all_tweets function")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5003)
