@@ -320,6 +320,8 @@ def add_all_tweets():
                     # Try to fix common JSON issues
                     fixed_output = cleaned_output.replace("'", '"')  # Replace single quotes with double quotes
                     fixed_output = re.sub(r'(\w+):', r'"\1":', fixed_output)  # Add quotes to keys
+                    fixed_output = re.sub(r',\s*]', ']', fixed_output)  # Remove trailing commas in arrays
+                    fixed_output = re.sub(r',\s*}', '}', fixed_output)  # Remove trailing commas in objects
                     parsed_output = json.loads(fixed_output)
                 
                 print(f"Successfully parsed output {i + 1}")
@@ -330,12 +332,8 @@ def add_all_tweets():
             except json.JSONDecodeError as jde:
                 print(f"JSON decode error in output {i + 1}: {str(jde)}")
                 print(f"Problematic output content: {output['output']}")
-                return jsonify({
-                    "error": "JSON decode error",
-                    "details": str(jde),
-                    "problematic_output": output['output'],
-                    "output_index": i
-                }), 400
+                # Instead of returning immediately, we'll continue processing other outputs
+                continue
 
         print(f"Total tweets received: {len(tweets)}")
 
