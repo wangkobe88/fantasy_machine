@@ -300,18 +300,31 @@ def add_all_tweets():
     try:
         data = request.json
         if not data or 'output' not in data:
+            print("Invalid data format received")
             return jsonify({"error": "Invalid data format"}), 400
 
         tweets = []
         for output in data['output']:
             tweets.extend(json.loads(output['output']))
 
+        print(f"Total tweets received: {len(tweets)}")
+
         conn = connect_db()
         cursor = conn.cursor()
 
         inserted_count = 0
+        skipped_count = 0
+        error_count = 0
+
         for tweet in tweets:
             try:
+                # Check if tweet already exists
+                cursor.execute("SELECT TweetId FROM tweets WHERE TweetId = ?", (tweet['TweetId'],))
+                if cursor.fetchone():
+                    print(f"Tweet {tweet['TweetId']} already exists, skipping")
+                    skipped_count += 1
+                    continue
+
                 # Convert CreateTime to datetime object
                 create_time = datetime.strptime(tweet['CreateTime'], '%a %b %d %H:%M:%S %z %Y')
                 
@@ -329,16 +342,28 @@ def add_all_tweets():
                     tweet['Score']
                 ))
                 inserted_count += 1
+                print(f"Inserted tweet {tweet['TweetId']}")
             except sqlite3.IntegrityError:
-                # Skip if the tweet already exists (assuming TweetId is unique)
-                pass
+                print(f"IntegrityError: Tweet {tweet['TweetId']} already exists")
+                skipped_count += 1
             except KeyError as ke:
-                print(f"Missing key in tweet data: {ke}")
+                print(f"KeyError processing tweet: {ke}")
+                error_count += 1
+            except Exception as e:
+                print(f"Error processing tweet {tweet.get('TweetId', 'Unknown')}: {str(e)}")
+                error_count += 1
 
         conn.commit()
-        return jsonify({"message": f"Successfully added {inserted_count} tweets"}), 200
+        print(f"Operation completed. Inserted: {inserted_count}, Skipped: {skipped_count}, Errors: {error_count}")
+        return jsonify({
+            "message": f"Operation completed",
+            "inserted": inserted_count,
+            "skipped": skipped_count,
+            "errors": error_count
+        }), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Unexpected error in add_all_tweets: {str(e)}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
     finally:
         if 'conn' in locals():
             conn.close()
