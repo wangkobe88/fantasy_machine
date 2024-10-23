@@ -313,5 +313,71 @@ def get_tweets():
     finally:
         conn.close()
 
+# API to add all tweets
+@app.route('/add_all_tweets', methods=['POST'])
+def add_all_tweets():
+    print("add_all_tweets function called")
+    try:
+        data = request.json
+        if not data or 'output' not in data:
+            print("Invalid JSON data received")
+            return jsonify({"error": "Invalid JSON data received"}), 400
+
+        conn = connect_db()
+        cursor = conn.cursor()
+
+        inserted_tweets = []
+        skipped_tweets = []
+        error_tweets = []
+
+        for item in data['output']:
+            if 'data' in item and 'freeBusy' in item['data'] and 'post' in item['data']['freeBusy']:
+                tweets = item['data']['freeBusy']['post']
+                for tweet in tweets:
+                    try:
+                        tweet_id = tweet.get('rest_id')
+                        if not tweet_id:
+                            raise ValueError("Missing tweet ID")
+
+                        content = json.dumps(tweet)
+                        created_at = tweet.get('created_at')
+
+                        # Check if a tweet with the same tweetID exists
+                        cursor.execute('SELECT tweetID FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
+                        result = cursor.fetchone()
+
+                        if result:
+                            print(f"Tweet {tweet_id} already exists, skipping")
+                            skipped_tweets.append(tweet_id)
+                        else:
+                            cursor.execute('''
+                                INSERT INTO tweets_v2 (tweetID, Content, CreatedAt) 
+                                VALUES (?, ?, ?)
+                            ''', (tweet_id, content, created_at))
+                            print(f"Tweet {tweet_id} inserted successfully")
+                            inserted_tweets.append(tweet_id)
+
+                    except Exception as e:
+                        print(f"Error processing tweet: {str(e)}")
+                        error_tweets.append(tweet_id if tweet_id else "Unknown ID")
+
+        conn.commit()
+        conn.close()
+
+        print(f"Operation completed. Inserted: {len(inserted_tweets)}, Skipped: {len(skipped_tweets)}, Errors: {len(error_tweets)}")
+        return jsonify({
+            "inserted": inserted_tweets,
+            "skipped": skipped_tweets,
+            "errors": error_tweets,
+            "total_processed": len(inserted_tweets) + len(skipped_tweets) + len(error_tweets),
+            "total_inserted": len(inserted_tweets),
+            "total_skipped": len(skipped_tweets),
+            "total_errors": len(error_tweets)
+        }), 200
+
+    except Exception as e:
+        print(f"Unexpected error in add_all_tweets: {str(e)}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5004, debug=True)
