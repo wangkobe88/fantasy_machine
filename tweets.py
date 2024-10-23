@@ -304,15 +304,25 @@ def add_all_tweets():
         data = request.json
         if not data or 'output' not in data:
             print("Invalid data format received")
+            print(f"Received data: {data}")
             return jsonify({"error": "Invalid data format", "details": "Expected 'output' key in JSON data"}), 400
 
         tweets = []
-        for output in data['output']:
+        for i, output in enumerate(data['output']):
+            print(f"Processing output {i + 1}/{len(data['output'])}")
+            print(f"Output content: {output}")
             try:
-                tweets.extend(json.loads(output['output']))
+                parsed_output = json.loads(output['output'])
+                print(f"Successfully parsed output {i + 1}")
+                tweets.extend(parsed_output)
             except json.JSONDecodeError as jde:
-                print(f"JSON decode error: {str(jde)}")
-                return jsonify({"error": "JSON decode error", "details": str(jde)}), 400
+                print(f"JSON decode error in output {i + 1}: {str(jde)}")
+                print(f"Problematic output content: {output['output']}")
+                return jsonify({
+                    "error": "JSON decode error",
+                    "details": str(jde),
+                    "problematic_output": output['output']
+                }), 400
 
         print(f"Total tweets received: {len(tweets)}")
 
