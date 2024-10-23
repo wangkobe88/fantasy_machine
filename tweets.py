@@ -312,10 +312,21 @@ def add_all_tweets():
             print(f"Processing output {i + 1}/{len(data['output'])}")
             try:
                 # Remove any JSON formatting characters and leading/trailing whitespace
-                cleaned_output = output['output'].replace('```json', '').strip()
-                parsed_output = json.loads(cleaned_output)
+                cleaned_output = output['output'].replace('```json', '').replace('```', '').strip()
+                # Try to parse the JSON, if it fails, try to fix common issues
+                try:
+                    parsed_output = json.loads(cleaned_output)
+                except json.JSONDecodeError:
+                    # Try to fix common JSON issues
+                    fixed_output = cleaned_output.replace("'", '"')  # Replace single quotes with double quotes
+                    fixed_output = re.sub(r'(\w+):', r'"\1":', fixed_output)  # Add quotes to keys
+                    parsed_output = json.loads(fixed_output)
+                
                 print(f"Successfully parsed output {i + 1}")
-                tweets.extend(parsed_output)
+                if isinstance(parsed_output, list):
+                    tweets.extend(parsed_output)
+                else:
+                    tweets.append(parsed_output)
             except json.JSONDecodeError as jde:
                 print(f"JSON decode error in output {i + 1}: {str(jde)}")
                 print(f"Problematic output content: {output['output']}")
