@@ -56,10 +56,10 @@ def add_tweets():
                     skipped_tweets.append(tweet['TweetId'])
                 else:
                     cursor.execute('''
-                        INSERT INTO tweets (Title, Author, CreateTime, Link, TweetId, Score, TweetType) 
+                        INSERT INTO tweets (Title, Author, CreateTime, UserName, TweetId, Score, TweetType) 
                         VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''', (
-                    tweet['Title'], tweet['Author'], tweet['CreateTime'], tweet['Link'], 
+                    tweet['Title'], tweet['Author'], tweet['CreateTime'], tweet['UserName'], 
                     tweet['TweetId'], tweet['Score'], tweet['TweetType']))
                     print(f"Tweet {tweet['TweetId']} inserted successfully")
                     inserted_tweets.append(tweet['TweetId'])
@@ -106,10 +106,11 @@ def get_todays_tweets():
                 "Title": row[1],
                 "Author": row[2],
                 "CreateTime": row[3],
-                "Link": row[4],
+                "UserName": row[4],
                 "TweetId": row[5],
                 "Score": row[6],
-                "TweetType": row[7]
+                "TweetType": row[7],
+                "Link": f"https://twitter.com/{row[4]}/status/{row[5]}"
             }
             tweets.append(tweet)
 
@@ -142,10 +143,11 @@ def get_latest_tweets():
                 "Title": row[1],
                 "Author": row[2],
                 "CreateTime": row[3],
-                "Link": row[4],
+                "UserName": row[4],
                 "TweetId": row[5],
                 "Score": row[6],
-                "TweetType": row[7]
+                "TweetType": row[7],
+                "Link": f"https://twitter.com/{row[4]}/status/{row[5]}"
             }
             tweets.append(tweet)
 
@@ -181,9 +183,9 @@ def get_todays_tweets_formated():
     try:
         # 修改 SQL 查询以包含今天和昨天的推文，并包括 Score，按 CreateTime 降序排序
         if tweet_type:
-            cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType, Score FROM tweets WHERE (CreateTime LIKE ? OR CreateTime LIKE ?) AND TweetType = ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%', tweet_type))
+            cursor.execute("SELECT Title, Author, CreateTime, UserName, TweetId, TweetType, Score FROM tweets WHERE (CreateTime LIKE ? OR CreateTime LIKE ?) AND TweetType = ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%', tweet_type))
         else:
-            cursor.execute("SELECT Title, Author, CreateTime, Link, TweetType, Score FROM tweets WHERE CreateTime LIKE ? OR CreateTime LIKE ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%'))
+            cursor.execute("SELECT Title, Author, CreateTime, UserName, TweetId, TweetType, Score FROM tweets WHERE CreateTime LIKE ? OR CreateTime LIKE ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%'))
         rows = cursor.fetchall()
 
         if not rows:
@@ -240,8 +242,8 @@ def get_todays_tweets_formated():
         """
 
         for row in rows:
-            title, author, create_time, link, tweet_type, score = row
-            username = extract_username(link)
+            title, author, create_time, username, tweet_id, tweet_type, score = row
+            link = f"https://twitter.com/{username}/status/{tweet_id}"
             influence = meme_kols.get(username.lower(), "未知") if username else "未知"
             
             create_time_obj = datetime.strptime(create_time, "%a %b %d %H:%M:%S %z %Y")
@@ -365,13 +367,13 @@ def add_all_tweets():
                 create_time = datetime.strptime(tweet['CreateTime'], '%a %b %d %H:%M:%S %z %Y')
                 
                 cursor.execute("""
-                    INSERT INTO tweets (Title, Author, CreateTime, Link, TweetId, TweetType, Score)
+                    INSERT INTO tweets (Title, Author, CreateTime, UserName, TweetId, TweetType, Score)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, (
                     tweet['Title'],
                     tweet['Author'],
                     create_time,
-                    tweet['Link'],
+                    tweet['UserName'],
                     tweet_id,
                     tweet['TweetType'],
                     tweet['Score']

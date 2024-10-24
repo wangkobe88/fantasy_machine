@@ -12,7 +12,7 @@ def create_tweets_table(cursor):
         Title TEXT,
         Author TEXT,
         CreateTime TEXT,
-        Link TEXT,
+        UserName TEXT,
         TweetId TEXT UNIQUE,
         Score INTEGER,
         TweetType TEXT
@@ -47,18 +47,34 @@ def print_tweets_v2_data(results):
         print(f"Created At: {row[2]}")
         print("-" * 50)
 
+def recreate_tweets_table(cursor):
+    # Drop the existing tweets table
+    drop_table_query = 'DROP TABLE IF EXISTS tweets;'
+    cursor.execute(drop_table_query)
+    
+    # Create the new tweets table
+    create_table_query = '''
+    CREATE TABLE tweets (
+        ID INTEGER PRIMARY KEY AUTOINCREMENT,
+        Title TEXT,
+        Author TEXT,
+        CreateTime TEXT,
+        UserName TEXT,
+        TweetId TEXT UNIQUE,
+        Score INTEGER,
+        TweetType TEXT
+    );
+    '''
+    cursor.execute(create_table_query)
+    print("tweets表已重新创建。")
+
 def main():
     conn = connect_to_db()
     cursor = conn.cursor()
 
-    #create_tweets_table(cursor)
-    #create_tweets_v2_table(cursor)
-    # clear_tweets_table(cursor)  # 取消注释以清除tweets表
-
-    #conn.commit()
-
-    results = fetch_tweets_v2_data(cursor)
-    print_tweets_v2_data(results)
+    recreate_tweets_table(cursor)
+    
+    conn.commit()
 
     conn.close()
     print("数据库操作完成。")
