@@ -395,8 +395,9 @@ def add_all_tweets():
                 print(f"Processing tweet {index + 1}/{len(tweets)}: {tweet_id}")
                 
                 cursor.execute("SELECT TweetId FROM tweets WHERE TweetId = ?", (tweet_id,))
-                if cursor.fetchone():
-                    print(f"Tweet {tweet_id} already exists, skipping")
+                existing_tweet = cursor.fetchone()
+                if existing_tweet:
+                    print(f"Tweet {tweet_id} already exists (Existing TweetId: {existing_tweet[0]}), skipping")
                     skipped_count += 1
                     continue
 
