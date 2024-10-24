@@ -68,11 +68,20 @@ def recreate_tweets_table(cursor):
     cursor.execute(create_table_query)
     print("tweets表已重新创建。")
 
+def get_total_tweets_count(cursor):
+    count_query = 'SELECT COUNT(*) FROM tweets;'
+    cursor.execute(count_query)
+    return cursor.fetchone()[0]
+
 def main():
     conn = connect_to_db()
     cursor = conn.cursor()
 
-    recreate_tweets_table(cursor)
+    #recreate_tweets_table(cursor)
+    
+    # Get and print the total number of tweets
+    total_tweets = get_total_tweets_count(cursor)
+    print(f"tweets表中的总数据数量：{total_tweets}")
     
     conn.commit()
 
