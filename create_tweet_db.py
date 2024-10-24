@@ -73,6 +73,24 @@ def get_total_tweets_count(cursor):
     cursor.execute(count_query)
     return cursor.fetchone()[0]
 
+def fetch_all_tweets(cursor):
+    select_query = 'SELECT * FROM tweets;'
+    cursor.execute(select_query)
+    return cursor.fetchall()
+
+def print_all_tweets(tweets):
+    print("tweets 表中的所有数据：")
+    for tweet in tweets:
+        print(f"ID: {tweet[0]}")
+        print(f"Title: {tweet[1]}")
+        print(f"Author: {tweet[2]}")
+        print(f"CreateTime: {tweet[3]}")
+        print(f"UserName: {tweet[4]}")
+        print(f"TweetId: {tweet[5]}")
+        print(f"Score: {tweet[6]}")
+        print(f"TweetType: {tweet[7]}")
+        print("-" * 50)
+
 def main():
     conn = connect_to_db()
     cursor = conn.cursor()
@@ -83,8 +101,11 @@ def main():
     total_tweets = get_total_tweets_count(cursor)
     print(f"tweets表中的总数据数量：{total_tweets}")
     
+    # Fetch and print all tweets
+    all_tweets = fetch_all_tweets(cursor)
+    print_all_tweets(all_tweets)
+    
     conn.commit()
-
     conn.close()
     print("数据库操作完成。")
 
