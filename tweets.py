@@ -170,8 +170,7 @@ def get_tweets_formated():
 
     # 使用北京时间
     now = datetime.now(ZoneInfo("Asia/Shanghai"))
-    today = now.strftime('%a %b %d')
-    yesterday = (now - timedelta(days=1)).strftime('%a %b %d')
+    two_days_ago = now - timedelta(days=2)
 
     # 读取 meme_kols.csv 文件
     meme_kols = {}
@@ -191,13 +190,18 @@ def get_tweets_formated():
 
         print(f"Retrieved {len(rows)} tweets from database")
 
-        # 过滤出今天和昨天的数据
-        filtered_rows = [row for row in rows if row[2].startswith(today) or row[2].startswith(yesterday)]
+        # 过滤出距离现在不超过48小时的数据
+        filtered_rows = []
+        for row in rows:
+            create_time = datetime.strptime(row[2], "%a %b %d %H:%M:%S %z %Y")
+            create_time = create_time.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Asia/Shanghai"))
+            if create_time >= two_days_ago:
+                filtered_rows.append(row)
 
-        print(f"Filtered {len(filtered_rows)} tweets for today and yesterday")
+        print(f"Filtered {len(filtered_rows)} tweets within the last 48 hours")
 
         if not filtered_rows:
-            error_message = f"没有找到今天（{today}）或昨天（{yesterday}）的推文。"
+            error_message = f"没有找到最近48小时内的推文。"
             print(error_message)
             return Response(f"<h1>没有数据</h1><p>{error_message}</p><p>请检查数据库中是否有最近的数据，或者时区设置是否正确。</p>", mimetype='text/html')
 
@@ -249,7 +253,7 @@ def get_tweets_formated():
         <body>
             <h1>🔥 最新热门推文 🔥</h1>
             <p>更新时间: {now.strftime('%Y年%m月%d日 %H:%M:%S')} 北京时间</p>
-            <p>显示范围: {yesterday} 至 {today}</p>
+            <p>显示范围: 最近48小时</p>
             <p>总计显示: {len(filtered_rows)} 条推文</p>
         """
 
