@@ -159,8 +159,9 @@ def get_latest_tweets():
         conn.close()
 
 # API to get today's tweets formatted for Twitter posting
-@app.route('/get_todays_tweets_formated', methods=['GET'])
-def get_todays_tweets_formated():
+@app.route('/get_tweets_formated', methods=['GET'])
+def get_tweets_formated():
+    print("Entering get_tweets_formated function")
     tweet_type = request.args.get('tweet_type')
     if tweet_type == "meme":
         tweet_type = "Meme"
@@ -181,15 +182,24 @@ def get_todays_tweets_formated():
             meme_kols[username.lower()] = influence
 
     try:
-        # 修改 SQL 查询以包含今天和昨天的推文，并包括 Score，按 CreateTime 降序排序
+        # 先获取最新的500条数据
         if tweet_type:
-            cursor.execute("SELECT Title, Author, CreateTime, UserName, TweetId, TweetType, Score FROM tweets WHERE (CreateTime LIKE ? OR CreateTime LIKE ?) AND TweetType = ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%', tweet_type))
+            cursor.execute("SELECT Title, Author, CreateTime, UserName, TweetId, TweetType, Score FROM tweets WHERE TweetType = ? ORDER BY CreateTime DESC LIMIT 500", (tweet_type,))
         else:
-            cursor.execute("SELECT Title, Author, CreateTime, UserName, TweetId, TweetType, Score FROM tweets WHERE CreateTime LIKE ? OR CreateTime LIKE ? ORDER BY CreateTime DESC", (f'{today}%', f'{yesterday}%'))
+            cursor.execute("SELECT Title, Author, CreateTime, UserName, TweetId, TweetType, Score FROM tweets ORDER BY CreateTime DESC LIMIT 500")
         rows = cursor.fetchall()
 
-        if not rows:
-            return Response("今天或昨天没有找到推文。", mimetype='text/html')
+        print(f"Retrieved {len(rows)} tweets from database")
+
+        # 过滤出今天和昨天的数据
+        filtered_rows = [row for row in rows if row[2].startswith(today) or row[2].startswith(yesterday)]
+
+        print(f"Filtered {len(filtered_rows)} tweets for today and yesterday")
+
+        if not filtered_rows:
+            error_message = f"没有找到今天（{today}）或昨天（{yesterday}）的推文。"
+            print(error_message)
+            return Response(f"<h1>没有数据</h1><p>{error_message}</p><p>请检查数据库中是否有最近的数据，或者时区设置是否正确。</p>", mimetype='text/html')
 
         html_content = f"""
         <!DOCTYPE html>
@@ -239,9 +249,11 @@ def get_todays_tweets_formated():
         <body>
             <h1>🔥 最新热门推文 🔥</h1>
             <p>更新时间: {now.strftime('%Y年%m月%d日 %H:%M:%S')} 北京时间</p>
+            <p>显示范围: {yesterday} 至 {today}</p>
+            <p>总计显示: {len(filtered_rows)} 条推文</p>
         """
 
-        for row in rows:
+        for row in filtered_rows:
             title, author, create_time, username, tweet_id, tweet_type, score = row
             link = f"https://twitter.com/{username}/status/{tweet_id}"
             influence = meme_kols.get(username.lower(), "未知") if username else "未知"
@@ -269,12 +281,18 @@ def get_todays_tweets_formated():
         </html>
         """
 
+        print("Successfully generated HTML content")
         return Response(html_content, mimetype='text/html')
 
     except Exception as e:
-        return Response(f"<h1>发生错误</h1><p>{str(e)}</p>", mimetype='text/html', status=500)
+        error_message = f"发生错误: {str(e)}"
+        print(error_message)
+        traceback_info = traceback.format_exc()
+        print(traceback_info)
+        return Response(f"<h1>发生错误</h1><p>{error_message}</p><pre>{traceback_info}</pre>", mimetype='text/html', status=500)
     finally:
         conn.close()
+        print("Exiting get_tweets_formated function")
 
 
 # API to get the total number of records ordered by CreateTime
