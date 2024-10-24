@@ -193,7 +193,17 @@ def get_tweets_formated():
         # 过滤出距离现在不超过48小时的数据
         filtered_rows = []
         for row in rows:
-            create_time = datetime.strptime(row[2], "%a %b %d %H:%M:%S %z %Y")
+            try:
+                # Try parsing with the old format first
+                create_time = datetime.strptime(row[2], "%a %b %d %H:%M:%S %z %Y")
+            except ValueError:
+                try:
+                    # If old format fails, try the new format
+                    create_time = datetime.strptime(row[2], "%Y-%m-%d %H:%M:%S%z")
+                except ValueError:
+                    print(f"Unable to parse date: {row[2]}")
+                    continue  # Skip this row if both formats fail
+            
             create_time = create_time.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Asia/Shanghai"))
             if create_time >= two_days_ago:
                 filtered_rows.append(row)
@@ -262,7 +272,11 @@ def get_tweets_formated():
             link = f"https://twitter.com/{username}/status/{tweet_id}"
             influence = meme_kols.get(username.lower(), "未知") if username else "未知"
             
-            create_time_obj = datetime.strptime(create_time, "%a %b %d %H:%M:%S %z %Y")
+            try:
+                create_time_obj = datetime.strptime(create_time, "%a %b %d %H:%M:%S %z %Y")
+            except ValueError:
+                create_time_obj = datetime.strptime(create_time, "%Y-%m-%d %H:%M:%S%z")
+            
             create_time_obj = create_time_obj.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Asia/Shanghai"))
             create_time_cn = create_time_obj.strftime("%Y年%m月%d日 %H:%M:%S")
             
