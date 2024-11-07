@@ -435,57 +435,19 @@ def add_all_tweets():
 
                 if result:
                     print(f"Tweet {tweet_id} already exists, skipping")
-        
-        # 遍历每个数据项
-        for item_index, item in enumerate(data):
-            print(f"\nProcessing item {item_index + 1}/{len(data)}")
-            
-            try:
-                if not item.get('data', {}).get('freeBusy', {}).get('post'):
-                    print(f"Item {item_index + 1} structure analysis:")
-                    print(json.dumps(item, indent=2))
-                    continue
-
-                tweets = item['data']['freeBusy']['post']
-                print(f"Found {len(tweets)} tweets in item {item_index + 1}")
-
-                for tweet_index, tweet in enumerate(tweets):
-                    try:
-                        tweet_id = tweet.get('rest_id')
-                        if not tweet_id:
-                            print(f"Missing tweet ID for tweet {tweet_index + 1}")
-                            raise ValueError("Missing tweet ID")
-
-                        content = json.dumps(tweet)
-                        created_at = tweet.get('created_at')
-                        userid = str(tweet.get('user', {}).get('rest_id', ''))
-
-                        print(f"Processing tweet {tweet_index + 1}/{len(tweets)}")
-                        print(f"Tweet ID: {tweet_id}, Created At: {created_at}, User ID: {userid}")
-
-                        # Check if tweet exists
-                        cursor.execute('SELECT tweetID FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
-                        result = cursor.fetchone()
-
-                        if result:
-                            print(f"Tweet {tweet_id} already exists, skipping")
-                            skipped_tweets.append(tweet_id)
-                        else:
-                            cursor.execute('''
-                                INSERT INTO tweets_v2 (tweetID, Content, CreatedAt, userid) 
-                                VALUES (?, ?, ?, ?)
-                            ''', (tweet_id, content, created_at, userid))
-                            print(f"Tweet {tweet_id} inserted successfully")
-                            inserted_tweets.append(tweet_id)
-
-                    except Exception as e:
-                        print(f"Error processing tweet {tweet_index + 1}: {str(e)}")
-                        print(f"Tweet data: {json.dumps(tweet, indent=2)}")
-                        error_tweets.append(tweet_id if tweet_id else "Unknown ID")
+                    skipped_tweets.append(tweet_id)
+                else:
+                    cursor.execute('''
+                        INSERT INTO tweets_v2 (tweetID, Content, CreatedAt, userid) 
+                        VALUES (?, ?, ?, ?)
+                    ''', (tweet_id, content, created_at, userid))
+                    print(f"Tweet {tweet_id} inserted successfully")
+                    inserted_tweets.append(tweet_id)
 
             except Exception as e:
-                print(f"Error processing item {item_index + 1}: {str(e)}")
-                print(f"Item data: {json.dumps(item, indent=2)}")
+                print(f"Error processing tweet {tweet_index + 1}: {str(e)}")
+                print(f"Tweet data: {json.dumps(tweet, indent=2)}")
+                error_tweets.append(tweet_id if tweet_id else "Unknown ID")
 
         conn.commit()
         conn.close()
