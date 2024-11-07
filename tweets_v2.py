@@ -596,6 +596,11 @@ def add_users():
         print(json.dumps(data, indent=2))
         print("=== End of Full Data ===\n")
 
+        # 将请求数据保存到文件
+        with open('/home/lighthouse/raw_data/request_data.json', 'w') as f:
+            json.dump(data, f, indent=2)
+        print("Request data saved to /home/lighthouse/raw_data/request_data.json")
+
         if not data or 'data' not in data or 'users' not in data['data']:
             print("Invalid JSON data received")
             return jsonify({"error": "Invalid JSON data received"}), 400
