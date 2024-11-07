@@ -387,15 +387,29 @@ def add_all_tweets():
 
         # 获取 output 中的 freeBusy.post
         output_data = data.get('output', {})
-        free_busy = output_data.get('freeBusy', {})
+        free_busy = output_data.get('freeBusy')
+        
+        # 添加 freeBusy 为 None 的检查
+        if free_busy is None:
+            print("freeBusy is None, data structure analysis:")
+            print(f"- Output content: {json.dumps(output_data, indent=2)}")
+            return jsonify({
+                "error": "freeBusy is None",
+                "output_data": output_data
+            }), 400
+            
         tweets = free_busy.get('post', [])
 
         if not tweets:
             print("No tweets found in the data")
             print("Data structure analysis:")
             print(f"- Has output: {'output' in data}")
-            print(f"- Output structure: {json.dumps(output_data, indent=2)[:500]}...")
-            return jsonify({"error": "No tweets found in data"}), 400
+            print(f"- Has freeBusy: {free_busy is not None}")
+            print(f"- FreeBusy content: {json.dumps(free_busy, indent=2)}")
+            return jsonify({
+                "error": "No tweets found in data",
+                "freeBusy_content": free_busy
+            }), 400
 
         print(f"Number of tweets found: {len(tweets)}")
 
