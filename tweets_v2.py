@@ -597,18 +597,22 @@ def add_users():
         print("=== End of Full Data ===\n")
 
         # 将请求数据保存到文件
-        with open('/home/lighthouse/raw_data/request_data.json', 'w') as f:
+        with open('/path/to/save/request_data.json', 'w') as f:
             json.dump(data, f, indent=2)
-        print("Request data saved to /home/lighthouse/raw_data/request_data.json")
+        print("Request data saved to /path/to/save/request_data.json")
 
-        if not data or 'data' not in data or 'users' not in data['data']:
+        if not data or 'output' not in data or not isinstance(data['output'], list):
             print("Invalid JSON data received")
             return jsonify({"error": "Invalid JSON data received"}), 400
 
-        users = data['data']['users']
-        if not isinstance(users, list):
-            print("Invalid users data - expected a list")
-            return jsonify({"error": "Invalid users data structure"}), 400
+        users = []
+        for item in data['output']:
+            if 'data' in item and 'users' in item['data']:
+                users.extend(item['data']['users'])
+
+        if not users:
+            print("No users data found")
+            return jsonify({"error": "No users data found"}), 400
 
         conn = connect_db()
         cursor = conn.cursor()
