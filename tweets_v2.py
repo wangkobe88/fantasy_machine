@@ -540,27 +540,17 @@ def get_user_stats():
             
             user = content.get('user', {})
             screen_name = user.get('screen_name')
-            followers_count = user.get('followers_count', 0)
 
             if not screen_name:
                 continue
 
             if screen_name not in user_stats:
                 user_stats[screen_name] = {
-                    'followers': {
-                        '3d': {'sum': 0, 'count': 0},
-                        '7d': {'sum': 0, 'count': 0},
-                        '15d': {'sum': 0, 'count': 0},
-                        '30d': {'sum': 0, 'count': 0},
-                        '90d': {'sum': 0, 'count': 0}
-                    },
-                    'tweets': {
-                        '3d': 0,
-                        '7d': 0,
-                        '15d': 0,
-                        '30d': 0,
-                        '90d': 0
-                    }
+                    '3d': 0,
+                    '7d': 0,
+                    '15d': 0,
+                    '30d': 0,
+                    '90d': 0
                 }
 
             # 计算天数差
@@ -569,30 +559,15 @@ def get_user_stats():
             # 更新各时间范围的统计
             for range_key, days in time_ranges.items():
                 if days_diff <= days:
-                    # 更新粉丝数统计
-                    user_stats[screen_name]['followers'][range_key]['sum'] += followers_count
-                    user_stats[screen_name]['followers'][range_key]['count'] += 1
-                    # 更新推文数统计
-                    user_stats[screen_name]['tweets'][range_key] += 1
+                    user_stats[screen_name][range_key] += 1
 
-        # 计算平均粉丝数并格式化结果
+        # 格式化结果
         formatted_stats = []
-        for screen_name, stats in user_stats.items():
+        for screen_name, tweet_counts in user_stats.items():
             user_data = {
                 'screen_name': screen_name,
-                'followers_avg': {},
-                'tweet_counts': stats['tweets']
+                'tweet_counts': tweet_counts
             }
-
-            # 计算每个时间范围的平均粉丝数
-            for range_key in time_ranges.keys():
-                follower_data = stats['followers'][range_key]
-                if follower_data['count'] > 0:
-                    avg = round(follower_data['sum'] / follower_data['count'])
-                else:
-                    avg = 0
-                user_data['followers_avg'][range_key] = avg
-
             formatted_stats.append(user_data)
 
         # 按90天推文数量排序
@@ -610,6 +585,129 @@ def get_user_stats():
         return jsonify({"error": str(e)}), 500
     finally:
         conn.close()
+
+# API to add or update users
+@app.route('/add_users', methods=['POST'])
+def add_users():
+    print("add_users function called")
+    try:
+        data = request.json
+        print("=== Received Full Data ===")
+        print(json.dumps(data, indent=2))
+        print("=== End of Full Data ===\n")
+
+        if not data or 'data' not in data or 'users' not in data['data']:
+            print("Invalid JSON data received")
+            return jsonify({"error": "Invalid JSON data received"}), 400
+
+        users = data['data']['users']
+        if not isinstance(users, list):
+            print("Invalid users data - expected a list")
+            return jsonify({"error": "Invalid users data structure"}), 400
+
+        conn = connect_db()
+        cursor = conn.cursor()
+
+        # 确保表存在
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users_v2 (
+                user_id INTEGER PRIMARY KEY,
+                screen_name TEXT NOT NULL,
+                name TEXT,
+                description TEXT,
+                location TEXT,
+                followers_count INTEGER,
+                friends_count INTEGER,
+                listed_count INTEGER,
+                favourites_count INTEGER,
+                media_count INTEGER,
+                created_at TEXT,
+                profile_image_url TEXT,
+                verified BOOLEAN,
+                last_updated TEXT
+            )
+        ''')
+
+        inserted_users = []
+        updated_users = []
+        error_users = []
+
+        for user in users:
+            try:
+                user_id = user.get('id')
+                if not user_id:
+                    raise ValueError("Missing user ID")
+
+                # 检查用户是否存在
+                cursor.execute('SELECT user_id FROM users_v2 WHERE user_id = ?', (user_id,))
+                exists = cursor.fetchone()
+
+                current_time = datetime.now(ZoneInfo("UTC")).strftime('%Y-%m-%d %H:%M:%S')
+                
+                user_data = (
+                    user_id,
+                    user.get('screen_name'),
+                    user.get('name'),
+                    user.get('description'),
+                    user.get('location'),
+                    user.get('followers_count'),
+                    user.get('friends_count'),
+                    user.get('listed_count'),
+                    user.get('favourites_count'),
+                    user.get('media_count'),
+                    user.get('created_at'),
+                    user.get('profile_image_url_https'),
+                    1 if user.get('verified') else 0,
+                    current_time
+                )
+
+                if exists:
+                    # 更新现有用户
+                    cursor.execute('''
+                        UPDATE users_v2 
+                        SET screen_name=?, name=?, description=?, location=?,
+                            followers_count=?, friends_count=?, listed_count=?,
+                            favourites_count=?, media_count=?, created_at=?,
+                            profile_image_url=?, verified=?, last_updated=?
+                        WHERE user_id=?
+                    ''', user_data[1:] + (user_id,))
+                    updated_users.append(user_id)
+                    print(f"Updated user {user_id}")
+                else:
+                    # 插入新用户
+                    cursor.execute('''
+                        INSERT INTO users_v2 (
+                            user_id, screen_name, name, description, location,
+                            followers_count, friends_count, listed_count,
+                            favourites_count, media_count, created_at,
+                            profile_image_url, verified, last_updated
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', user_data)
+                    inserted_users.append(user_id)
+                    print(f"Inserted user {user_id}")
+
+            except Exception as e:
+                print(f"Error processing user: {str(e)}")
+                print(f"User data: {json.dumps(user, indent=2)}")
+                error_users.append(str(user_id) if user_id else "Unknown ID")
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            "inserted": inserted_users,
+            "updated": updated_users,
+            "errors": error_users,
+            "total_processed": len(users),
+            "total_inserted": len(inserted_users),
+            "total_updated": len(updated_users),
+            "total_errors": len(error_users)
+        }), 200
+
+    except Exception as e:
+        print(f"Unexpected error in add_users: {str(e)}")
+        print(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5004, debug=True)
