@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 import json
 import traceback
+import os
 
 app = Flask(__name__)
 app.config['DEBUG'] = True  # Enable debug mode
@@ -373,6 +374,28 @@ def get_tweets_formated():
         conn.close()
 
 
+def save_raw_data(data, prefix="tweets"):
+    """保存原始数据到文件"""
+    try:
+        # 创建 raw_data 目录（如果不存在）
+        data_dir = "/home/lighthouse/raw_data"
+        if not os.path.exists(data_dir):
+            os.makedirs(data_dir)
+        
+        # 生成带时间戳的文件名
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{data_dir}/{prefix}_{timestamp}.json"
+        
+        # 保存数据
+        with open(filename, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        print(f"Raw data saved to: {filename}")
+        return filename
+    except Exception as e:
+        print(f"Error saving raw data: {str(e)}")
+        return None
+
 # API to add all tweets
 @app.route('/add_all_tweets', methods=['POST'])
 def add_all_tweets():
@@ -382,6 +405,15 @@ def add_all_tweets():
         print("=== Received Full Data ===")
         print(json.dumps(data, indent=2))
         print("=== End of Full Data ===\n")
+
+        # 保存原始数据
+        saved_file = save_raw_data(data)
+        if saved_file:
+            print(f"Raw data saved to: {saved_file}")
+
+        if not data or not isinstance(data, list):
+            print("Invalid JSON data received - expected a list")
+            return jsonify({"error": "Invalid JSON data received - expected a list"}), 400
 
         # 修改数据验证逻辑
         if not data or not isinstance(data, dict) or 'output' not in data:
