@@ -709,6 +709,71 @@ def add_users():
         print(f"Full traceback: {traceback.format_exc()}")
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
 
+@app.route('/get_user_follower_averages', methods=['GET'])
+def get_user_follower_averages():
+    print("get_user_follower_averages function called")
+    try:
+        conn = connect_db()
+        cursor = conn.cursor()
+
+        # 获取当前UTC时间
+        now = datetime.now(ZoneInfo("UTC"))
+
+        # 定义时间范围
+        time_ranges = {
+            '3d': 3,
+            '7d': 7,
+            '15d': 15,
+            '30d': 30,
+            '90d': 90
+        }
+
+        # 用户粉丝数统计数据
+        user_follower_averages = {}
+
+        # 获取所有用户的粉丝数历史数据
+        for range_key, days in time_ranges.items():
+            start_date = (now - timedelta(days=days)).strftime('%Y-%m-%d %H:%M:%S')
+            query = '''
+                SELECT user_id, screen_name, AVG(followers_count) as avg_followers
+                FROM users_v2
+                WHERE last_updated >= ?
+                GROUP BY user_id, screen_name
+            '''
+            cursor.execute(query, (start_date,))
+            rows = cursor.fetchall()
+
+            for row in rows:
+                user_id, screen_name, avg_followers = row
+                if user_id not in user_follower_averages:
+                    user_follower_averages[user_id] = {
+                        'screen_name': screen_name,
+                        'averages': {}
+                    }
+                user_follower_averages[user_id]['averages'][range_key] = avg_followers
+
+        # 格式化结果
+        formatted_averages = []
+        for user_id, data in user_follower_averages.items():
+            formatted_averages.append({
+                'user_id': user_id,
+                'screen_name': data['screen_name'],
+                'averages': data['averages']
+            })
+
+        return jsonify({
+            'total_users': len(formatted_averages),
+            'updated_at': now.strftime('%Y-%m-%d %H:%M:%S UTC'),
+            'averages': formatted_averages
+        }), 200
+
+    except Exception as e:
+        print(f"Error in get_user_follower_averages: {str(e)}")
+        print(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5004, debug=True)
 
