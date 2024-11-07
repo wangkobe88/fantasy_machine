@@ -437,6 +437,33 @@ def add_all_tweets():
                         error_tweets.append(tweet_id if tweet_id else "Unknown ID")
             else:
                 print(f"Item {item_index + 1} does not contain expected data structure")
+                # 详细诊断数据结构问题
+                if item is None:
+                    print(f"Item {item_index + 1} is None")
+                else:
+                    print(f"Item {item_index + 1} structure analysis:")
+                    if 'data' not in item:
+                        print("- Missing 'data' field")
+                    else:
+                        print("- 'data' field exists")
+                        if 'freeBusy' not in item['data']:
+                            print("- Missing 'freeBusy' field in data")
+                        else:
+                            print("- 'freeBusy' field exists")
+                            if item['data']['freeBusy'] is None:
+                                print("- 'freeBusy' is None")
+                            else:
+                                if 'post' not in item['data']['freeBusy']:
+                                    print("- Missing 'post' field in freeBusy")
+                                else:
+                                    print("- Unexpected structure in 'post' field")
+                    
+                    # 输出实际的数据结构
+                    print("\nActual item structure:")
+                    try:
+                        print(json.dumps(item, indent=2)[:1000] + "...")
+                    except Exception as e:
+                        print(f"Error printing item structure: {str(e)}")
 
         conn.commit()
         conn.close()
