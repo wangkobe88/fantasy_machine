@@ -379,7 +379,7 @@ def add_all_tweets():
     print("add_all_tweets function called")
     try:
         data = request.json
-        print(f"Received data: {json.dumps(data, indent=2)[:1000]}...")
+        print(f"Received data: {json.dumps(data, indent=2)}...")
 
         if not data or 'output' not in data:
             print("Invalid JSON data received")
