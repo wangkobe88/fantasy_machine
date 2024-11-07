@@ -383,48 +383,9 @@ def add_all_tweets():
         print(json.dumps(data, indent=2))
         print("=== End of Full Data ===\n")
 
-        if not data or 'output' not in data:
-            print("Invalid JSON data received")
-            return jsonify({"error": "Invalid JSON data received"}), 400
-
-        # 获取 output 中的 freeBusy.post
-        output_data = data.get('output', {})
-        print("=== Output Data Structure ===")
-        print(json.dumps(output_data, indent=2))
-        print("=== End of Output Data ===\n")
-
-        free_busy = output_data.get('freeBusy')
-        print("=== FreeBusy Data Structure ===")
-        print(json.dumps(free_busy, indent=2))
-        print("=== End of FreeBusy Data ===\n")
-        
-        # 添加 freeBusy 为 None 的检查
-        if free_busy is None:
-            print("freeBusy is None, complete data structure analysis:")
-            print("1. Full request data:")
-            print(json.dumps(data, indent=2))
-            print("\n2. Output data:")
-            print(json.dumps(output_data, indent=2))
-            return jsonify({
-                "error": "freeBusy is None",
-                "output_data": output_data,
-                "full_data": data
-            }), 400
-
-        tweets = free_busy.get('post', [])
-
-        if not tweets:
-            print("No tweets found in the data")
-            print("Data structure analysis:")
-            print(f"- Has output: {'output' in data}")
-            print(f"- Has freeBusy: {free_busy is not None}")
-            print(f"- FreeBusy content: {json.dumps(free_busy, indent=2)}")
-            return jsonify({
-                "error": "No tweets found in data",
-                "freeBusy_content": free_busy
-            }), 400
-
-        print(f"Number of tweets found: {len(tweets)}")
+        if not data or not isinstance(data, list):
+            print("Invalid JSON data received - expected a list")
+            return jsonify({"error": "Invalid JSON data received - expected a list"}), 400
 
         conn = connect_db()
         cursor = conn.cursor()
@@ -432,46 +393,62 @@ def add_all_tweets():
         inserted_tweets = []
         skipped_tweets = []
         error_tweets = []
-
-        for tweet_index, tweet in enumerate(tweets):
+        
+        # 遍历每个数据项
+        for item_index, item in enumerate(data):
+            print(f"\nProcessing item {item_index + 1}/{len(data)}")
+            
             try:
-                tweet_id = tweet.get('rest_id')
-                if not tweet_id:
-                    print(f"Missing tweet ID for tweet {tweet_index + 1}")
-                    raise ValueError("Missing tweet ID")
+                if not item.get('data', {}).get('freeBusy', {}).get('post'):
+                    print(f"Item {item_index + 1} structure analysis:")
+                    print(json.dumps(item, indent=2))
+                    continue
 
-                content = json.dumps(tweet)
-                created_at = tweet.get('created_at')
-                # 从tweet中提取userid
-                userid = str(tweet.get('user', {}).get('rest_id', ''))
+                tweets = item['data']['freeBusy']['post']
+                print(f"Found {len(tweets)} tweets in item {item_index + 1}")
 
-                print(f"Processing tweet {tweet_index + 1}/{len(tweets)}")
-                print(f"Tweet ID: {tweet_id}, Created At: {created_at}, User ID: {userid}")
+                for tweet_index, tweet in enumerate(tweets):
+                    try:
+                        tweet_id = tweet.get('rest_id')
+                        if not tweet_id:
+                            print(f"Missing tweet ID for tweet {tweet_index + 1}")
+                            raise ValueError("Missing tweet ID")
 
-                # Check if a tweet with the same tweetID exists
-                cursor.execute('SELECT tweetID FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
-                result = cursor.fetchone()
+                        content = json.dumps(tweet)
+                        created_at = tweet.get('created_at')
+                        userid = str(tweet.get('user', {}).get('rest_id', ''))
 
-                if result:
-                    print(f"Tweet {tweet_id} already exists, skipping")
-                    skipped_tweets.append(tweet_id)
-                else:
-                    cursor.execute('''
-                        INSERT INTO tweets_v2 (tweetID, Content, CreatedAt, userid) 
-                        VALUES (?, ?, ?, ?)
-                    ''', (tweet_id, content, created_at, userid))
-                    print(f"Tweet {tweet_id} inserted successfully")
-                    inserted_tweets.append(tweet_id)
+                        print(f"Processing tweet {tweet_index + 1}/{len(tweets)}")
+                        print(f"Tweet ID: {tweet_id}, Created At: {created_at}, User ID: {userid}")
+
+                        # Check if tweet exists
+                        cursor.execute('SELECT tweetID FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
+                        result = cursor.fetchone()
+
+                        if result:
+                            print(f"Tweet {tweet_id} already exists, skipping")
+                            skipped_tweets.append(tweet_id)
+                        else:
+                            cursor.execute('''
+                                INSERT INTO tweets_v2 (tweetID, Content, CreatedAt, userid) 
+                                VALUES (?, ?, ?, ?)
+                            ''', (tweet_id, content, created_at, userid))
+                            print(f"Tweet {tweet_id} inserted successfully")
+                            inserted_tweets.append(tweet_id)
+
+                    except Exception as e:
+                        print(f"Error processing tweet {tweet_index + 1}: {str(e)}")
+                        print(f"Tweet data: {json.dumps(tweet, indent=2)}")
+                        error_tweets.append(tweet_id if tweet_id else "Unknown ID")
 
             except Exception as e:
-                print(f"Error processing tweet {tweet_index + 1}: {str(e)}")
-                print(f"Tweet data: {json.dumps(tweet, indent=2)}")
-                error_tweets.append(tweet_id if tweet_id else "Unknown ID")
+                print(f"Error processing item {item_index + 1}: {str(e)}")
+                print(f"Item data: {json.dumps(item, indent=2)}")
 
         conn.commit()
         conn.close()
 
-        print(f"Operation completed. Inserted: {len(inserted_tweets)}, Skipped: {len(skipped_tweets)}, Errors: {len(error_tweets)}")
+        print(f"\nOperation completed. Inserted: {len(inserted_tweets)}, Skipped: {len(skipped_tweets)}, Errors: {len(error_tweets)}")
         return jsonify({
             "inserted": inserted_tweets,
             "skipped": skipped_tweets,
