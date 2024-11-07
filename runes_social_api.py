@@ -64,5 +64,23 @@ def social_info():
     
     return jsonify({"error": "Name not found"}), 404
 
+@app.route('/column_data', methods=['GET'])
+def column_data():
+    column = request.args.get('column')
+    if not column:
+        return jsonify({"error": "No column specified"}), 400
+    
+    if column not in RUNES_DATA[0].keys():
+        return jsonify({"error": f"Column '{column}' not found"}), 404
+    
+    # 获取指定列的所有非空值，并保持原始顺序
+    values = [row[column] for row in RUNES_DATA if row[column]]
+    
+    return jsonify({
+        "column": column,
+        "total_count": len(values),
+        "data": values
+    })
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5008) 
