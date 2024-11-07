@@ -379,7 +379,9 @@ def add_all_tweets():
     print("add_all_tweets function called")
     try:
         data = request.json
-        print(f"Received data: {json.dumps(data, indent=2)}...")
+        print("=== Received Full Data ===")
+        print(json.dumps(data, indent=2))
+        print("=== End of Full Data ===\n")
 
         if not data or 'output' not in data:
             print("Invalid JSON data received")
@@ -387,17 +389,28 @@ def add_all_tweets():
 
         # 获取 output 中的 freeBusy.post
         output_data = data.get('output', {})
+        print("=== Output Data Structure ===")
+        print(json.dumps(output_data, indent=2))
+        print("=== End of Output Data ===\n")
+
         free_busy = output_data.get('freeBusy')
+        print("=== FreeBusy Data Structure ===")
+        print(json.dumps(free_busy, indent=2))
+        print("=== End of FreeBusy Data ===\n")
         
         # 添加 freeBusy 为 None 的检查
         if free_busy is None:
-            print("freeBusy is None, data structure analysis:")
-            print(f"- Output content: {json.dumps(output_data, indent=2)}")
+            print("freeBusy is None, complete data structure analysis:")
+            print("1. Full request data:")
+            print(json.dumps(data, indent=2))
+            print("\n2. Output data:")
+            print(json.dumps(output_data, indent=2))
             return jsonify({
                 "error": "freeBusy is None",
-                "output_data": output_data
+                "output_data": output_data,
+                "full_data": data
             }), 400
-            
+
         tweets = free_busy.get('post', [])
 
         if not tweets:
