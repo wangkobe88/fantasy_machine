@@ -48,10 +48,12 @@ def add_tweets():
             try:
                 print(f"Processing tweet {index + 1}/{len(data)}")
                 tweet_id = tweet['rest_id']
-                content = json.dumps(tweet)  # Convert the entire tweet object to a JSON string
+                content = json.dumps(tweet)
                 created_at = tweet.get('created_at')
+                # 从tweet中提取userid
+                userid = str(tweet.get('user', {}).get('id_str', ''))
 
-                print(f"Tweet ID: {tweet_id}, Created At: {created_at}")
+                print(f"Tweet ID: {tweet_id}, Created At: {created_at}, User ID: {userid}")
 
                 # Check if a tweet with the same tweetID exists
                 cursor.execute('SELECT tweetID FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
@@ -62,9 +64,9 @@ def add_tweets():
                     skipped_tweets.append(tweet_id)
                 else:
                     cursor.execute('''
-                        INSERT INTO tweets_v2 (tweetID, Content, CreatedAt) 
-                        VALUES (?, ?, ?)
-                    ''', (tweet_id, content, created_at))
+                        INSERT INTO tweets_v2 (tweetID, Content, CreatedAt, userid) 
+                        VALUES (?, ?, ?, ?)
+                    ''', (tweet_id, content, created_at, userid))
                     print(f"Tweet {tweet_id} inserted successfully")
                     inserted_tweets.append(tweet_id)
             except KeyError as ke:
@@ -377,7 +379,7 @@ def add_all_tweets():
     print("add_all_tweets function called")
     try:
         data = request.json
-        print(f"Received data: {json.dumps(data, indent=2)[:1000]}...")  # Print first 1000 characters of received data
+        print(f"Received data: {json.dumps(data, indent=2)[:1000]}...")
 
         if not data or 'output' not in data:
             print("Invalid JSON data received")
@@ -408,9 +410,11 @@ def add_all_tweets():
 
                         content = json.dumps(tweet)
                         created_at = tweet.get('created_at')
+                        # 从tweet中提取userid
+                        userid = str(tweet.get('user', {}).get('id_str', ''))
 
                         print(f"Processing tweet {tweet_index + 1}/{len(tweets)} in item {item_index + 1}")
-                        print(f"Tweet ID: {tweet_id}, Created At: {created_at}")
+                        print(f"Tweet ID: {tweet_id}, Created At: {created_at}, User ID: {userid}")
 
                         # Check if a tweet with the same tweetID exists
                         cursor.execute('SELECT tweetID FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
@@ -421,9 +425,9 @@ def add_all_tweets():
                             skipped_tweets.append(tweet_id)
                         else:
                             cursor.execute('''
-                                INSERT INTO tweets_v2 (tweetID, Content, CreatedAt) 
-                                VALUES (?, ?, ?)
-                            ''', (tweet_id, content, created_at))
+                                INSERT INTO tweets_v2 (tweetID, Content, CreatedAt, userid) 
+                                VALUES (?, ?, ?, ?)
+                            ''', (tweet_id, content, created_at, userid))
                             print(f"Tweet {tweet_id} inserted successfully")
                             inserted_tweets.append(tweet_id)
 
