@@ -233,7 +233,7 @@ def get_tweets_formated():
             meme_kols[username.lower()] = influence
 
     try:
-        # Fetch the latest 200 tweets
+        # Fetch the latest 500 tweets
         query = """
         SELECT Content, CreatedAt FROM tweets_v2 
         ORDER BY CreatedAt DESC
@@ -244,36 +244,49 @@ def get_tweets_formated():
 
         print(f"Fetched {len(rows)} tweets")
 
-        # Filter tweets for today and tomorrow
+        # 修改日期过滤逻辑
         filtered_tweets = []
         for row in rows:
             content = json.loads(row[0])
             created_at = row[1]
-            tweet_date = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y").strftime('%Y-%m-%d')
-            if tweet_date in [today, tomorrow]:
-                filtered_tweets.append(content)
-
-        print(f"Filtered to {len(filtered_tweets)} tweets for today and tomorrow")
-
-        if not filtered_tweets:
-            print("No tweets found for today or tomorrow")
-            # Add debug information
-            cursor.execute("SELECT COUNT(*) FROM tweets_v2")
-            total_tweets = cursor.fetchone()[0]
-            print(f"Total tweets in database: {total_tweets}")
             
-            cursor.execute("SELECT MIN(CreatedAt), MAX(CreatedAt) FROM tweets_v2")
-            min_date, max_date = cursor.fetchone()
-            print(f"Date range in database: from {min_date} to {max_date}")
+            # 添加调试日志
+            print(f"\nProcessing tweet:")
+            print(f"Created at (raw): {created_at}")
+            
+            try:
+                # 解析推文创建时间
+                tweet_date_obj = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
+                tweet_date = tweet_date_obj.strftime('%Y-%m-%d')
+                
+                print(f"Parsed date: {tweet_date}")
+                print(f"Today: {today}")
+                print(f"Tomorrow: {tomorrow}")
+                
+                # 检查日期是否在今天或明天
+                if tweet_date in [today, tomorrow]:
+                    print("Tweet matched date criteria - adding to filtered list")
+                    filtered_tweets.append(content)
+                else:
+                    print("Tweet outside date range - skipping")
+            except ValueError as e:
+                print(f"Error parsing date: {e}")
+                continue
 
-            # Add a query to fetch a few sample tweets
-            cursor.execute("SELECT tweetID, CreatedAt, substr(Content, 1, 100) FROM tweets_v2 ORDER BY CreatedAt DESC LIMIT 5")
-            sample_tweets = cursor.fetchall()
-            print("Sample tweets:")
-            for tweet in sample_tweets:
-                print(f"ID: {tweet[0]}, Created At: {tweet[1]}, Content preview: {tweet[2]}...")
+        print(f"\nFiltered to {len(filtered_tweets)} tweets for today and tomorrow")
 
-            return Response("今天或明天没有找到推文。", mimetype='text/html')
+        # 如果没有找到推文，添加更多调试信息
+        if not filtered_tweets:
+            print("\nNo tweets found for today or tomorrow")
+            print(f"Today's date (UTC): {today}")
+            print(f"Tomorrow's date (UTC): {tomorrow}")
+            
+            # 显示最近5条推文的日期
+            print("\nMost recent 5 tweets dates:")
+            for i, row in enumerate(rows[:5]):
+                content = json.loads(row[0])
+                created_at = row[1]
+                print(f"Tweet {i+1}: {created_at}")
 
         html_content = f"""
         <!DOCTYPE html>
