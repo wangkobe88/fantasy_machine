@@ -238,5 +238,91 @@ def get_user_follower_averages():
     finally:
         conn.close()
 
+# API to get user statistics
+@app.route('/get_user_stats', methods=['GET'])
+def get_user_stats():
+    print("get_user_stats function called")
+    try:
+        conn = connect_db()
+        cursor = conn.cursor()
+
+        # 获取当前UTC时间
+        now = datetime.now(ZoneInfo("UTC"))
+        
+        # 定义时间范围
+        time_ranges = {
+            '3d': 3,
+            '7d': 7,
+            '15d': 15,
+            '30d': 30,
+            '90d': 90
+        }
+
+        # 获取所有用户的推文
+        query = """
+        SELECT Content, CreatedAt 
+        FROM tweets_v2 
+        WHERE CreatedAt >= datetime('now', '-90 days')
+        ORDER BY CreatedAt DESC
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        # 用户统计数据
+        user_stats = {}
+
+        # 处理每条推文
+        for row in rows:
+            content = json.loads(row[0])
+            created_at = datetime.strptime(row[1], "%a %b %d %H:%M:%S %z %Y")
+            
+            user = content.get('user', {})
+            screen_name = user.get('screen_name')
+
+            if not screen_name:
+                continue
+
+            if screen_name not in user_stats:
+                user_stats[screen_name] = {
+                    '3d': 0,
+                    '7d': 0,
+                    '15d': 0,
+                    '30d': 0,
+                    '90d': 0
+                }
+
+            # 计算天数差
+            days_diff = (now - created_at).days
+
+            # 更新各时间范围的统计
+            for range_key, days in time_ranges.items():
+                if days_diff <= days:
+                    user_stats[screen_name][range_key] += 1
+
+        # 格式化结果
+        formatted_stats = []
+        for screen_name, tweet_counts in user_stats.items():
+            user_data = {
+                'screen_name': screen_name,
+                'tweet_counts': tweet_counts
+            }
+            formatted_stats.append(user_data)
+
+        # 按90天推文数量排序
+        formatted_stats.sort(key=lambda x: x['tweet_counts']['90d'], reverse=True)
+
+        return jsonify({
+            'total_users': len(formatted_stats),
+            'updated_at': now.strftime('%Y-%m-%d %H:%M:%S UTC'),
+            'stats': formatted_stats
+        }), 200
+
+    except Exception as e:
+        print(f"Error in get_user_stats: {str(e)}")
+        print(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5010, debug=True)
