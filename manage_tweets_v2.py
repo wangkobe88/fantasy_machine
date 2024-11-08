@@ -83,6 +83,24 @@ def get_tweets_by_userid(cursor, userid):
         print(f"获取用户推文时发生错误: {e}")
         return None
 
+def get_tweet_by_id(cursor, tweet_id):
+    """获取指定ID的推文"""
+    try:
+        cursor.execute('SELECT * FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
+        
+        columns = [description[0] for description in cursor.description]
+        row = cursor.fetchone()
+        
+        if row:
+            tweet_dict = dict(zip(columns, row))
+            if tweet_dict['Content']:
+                tweet_dict['Content'] = json.loads(tweet_dict['Content'])
+            return tweet_dict
+        return None
+    except sqlite3.Error as e:
+        print(f"获取推文时发生错误: {e}")
+        return None
+
 def print_table_info(cursor):
     """打印表的基本信息"""
     try:
@@ -124,9 +142,10 @@ def main():
         print("3. 获取最新10条推文")
         print("4. 按日期范围查询推文")
         print("5. 按用户ID查询推文")
-        print("6. 退出")
+        print("6. 按推文ID查询推文")
+        print("7. 退出")
         
-        choice = input("\n请输入选项(1-6): ")
+        choice = input("\n请输入选项(1-7): ")
         
         if choice == '1':
             if clear_tweets_v2_table(cursor):
@@ -167,8 +186,21 @@ def main():
                     print(f"\nTweet ID: {tweet['tweetID']}")
                     print(f"Created At: {tweet['CreatedAt']}")
                     print("-" * 50)
-        
+
         elif choice == '6':
+            tweet_id = input("请输入推文ID: ")
+            tweet = get_tweet_by_id(cursor, tweet_id)
+            if tweet:
+                print("\n找到推文:")
+                print(f"Tweet ID: {tweet['tweetID']}")
+                print(f"Created At: {tweet['CreatedAt']}")
+                print(f"User ID: {tweet['userid']}")
+                print("\n推文内容:")
+                print(json.dumps(tweet['Content'], indent=2, ensure_ascii=False))
+            else:
+                print(f"\n未找到ID为 {tweet_id} 的推文")
+        
+        elif choice == '7':
             break
         
         else:
