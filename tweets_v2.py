@@ -429,9 +429,9 @@ def add_all_tweets():
         print("=== End of Full Data ===\n")
 
         # 保存原始数据
-        #saved_file = save_raw_data(data)
-        #if saved_file:
-        #    print(f"Raw data saved to: {saved_file}")
+        saved_file = save_raw_data(data)
+        if saved_file:
+            print(f"Raw data saved to: {saved_file}")
 
         if not data or not isinstance(data, dict) or 'output' not in data:
             print("Invalid JSON data received - expected an object with 'output' field")
