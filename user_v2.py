@@ -42,20 +42,40 @@ def add_users():
 
         # 提取用户数据
         users = []
+        processed_user_ids = set()  # 用于跟踪已处理的用户ID
         print("\n=== Extracting User Data ===")
+        
         for i, item in enumerate(data['output']):
             print(f"\nProcessing output item {i+1}/{len(data['output'])}")
-            if 'data' in item and 'users' in item['data']:
-                users.extend(item['data']['users'])
-                print(f"Found {len(item['data']['users'])} users in this item")
-            else:
-                print("No users found in this item")
+            
+            if not item.get('data') or not isinstance(item.get('data'), dict):
+                print(f"Skipping item {i+1}: Invalid data structure")
+                continue
+                
+            item_users = item['data'].get('users')
+            if not item_users:
+                print(f"Skipping item {i+1}: No users data")
+                continue
+                
+            for user in item_users:
+                user_id = user.get('id')
+                if not user_id:
+                    print("Skipping user: Missing ID")
+                    continue
+                    
+                if user_id in processed_user_ids:
+                    print(f"Skipping duplicate user ID: {user_id}")
+                    continue
+                    
+                users.append(user)
+                processed_user_ids.add(user_id)
+                print(f"Added user {user_id} to processing queue")
 
         if not users:
-            print("Error: No users data found in any output item")
-            return jsonify({"error": "No users data found"}), 400
+            print("Error: No valid users data found")
+            return jsonify({"error": "No valid users data found"}), 400
 
-        print(f"\nTotal users extracted: {len(users)}")
+        print(f"\nTotal unique users extracted: {len(users)}")
 
         # 数据库操作
         print("\n=== Database Operations ===")
