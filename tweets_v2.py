@@ -217,20 +217,11 @@ def get_tweets_formated():
     conn = connect_db()
     cursor = conn.cursor()
 
-    # Use UTC time for consistency
+    # 使用 UTC 时间
     now = datetime.now(ZoneInfo("UTC"))
-    today = now.strftime('%Y-%m-%d')
-    tomorrow = (now + timedelta(days=1)).strftime('%Y-%m-%d')
-
-    print(f"Querying for tweets from {today} and {tomorrow}")
-
-    # 读取 meme_kols.csv 文件
-    meme_kols = {}
-    with open('./data/meme_kols.csv', 'r') as f:
-        next(f)  # 跳过标题行
-        for line in f:
-            username, influence = line.strip().split(',')[:2]
-            meme_kols[username.lower()] = influence
+    two_days_ago = now - timedelta(hours=48)
+    
+    print(f"Querying for tweets from {two_days_ago.strftime('%Y-%m-%d %H:%M:%S')} to {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
         # Fetch the latest 500 tweets
@@ -257,29 +248,29 @@ def get_tweets_formated():
             try:
                 # 解析推文创建时间
                 tweet_date_obj = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
-                tweet_date = tweet_date_obj.strftime('%Y-%m-%d')
+                tweet_date_obj = tweet_date_obj.replace(tzinfo=ZoneInfo("UTC"))
                 
-                print(f"Parsed date: {tweet_date}")
-                print(f"Today: {today}")
-                print(f"Tomorrow: {tomorrow}")
+                print(f"Parsed date: {tweet_date_obj}")
+                print(f"Two days ago: {two_days_ago}")
+                print(f"Now: {now}")
                 
-                # 检查日期是否在今天或明天
-                if tweet_date in [today, tomorrow]:
-                    print("Tweet matched date criteria - adding to filtered list")
+                # 检查是否在最近48小时内
+                if two_days_ago <= tweet_date_obj <= now:
+                    print("Tweet within 48 hours - adding to filtered list")
                     filtered_tweets.append(content)
                 else:
-                    print("Tweet outside date range - skipping")
+                    print("Tweet outside 48-hour range - skipping")
             except ValueError as e:
                 print(f"Error parsing date: {e}")
                 continue
 
-        print(f"\nFiltered to {len(filtered_tweets)} tweets for today and tomorrow")
+        print(f"\nFiltered to {len(filtered_tweets)} tweets within last 48 hours")
 
         # 如果没有找到推文，添加更多调试信息
         if not filtered_tweets:
-            print("\nNo tweets found for today or tomorrow")
-            print(f"Today's date (UTC): {today}")
-            print(f"Tomorrow's date (UTC): {tomorrow}")
+            print("\nNo tweets found within last 48 hours")
+            print(f"Current time (UTC): {now}")
+            print(f"Two days ago (UTC): {two_days_ago}")
             
             # 显示最近5条推文的日期
             print("\nMost recent 5 tweets dates:")
