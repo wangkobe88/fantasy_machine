@@ -152,8 +152,20 @@ def get_tweets_formated():
     # 使用 UTC 时间
     now = datetime.now(ZoneInfo("UTC"))
     two_days_ago = (now - timedelta(hours=48))
-    
     print(f"Querying for tweets from {two_days_ago.strftime('%Y-%m-%d %H:%M:%S %z')} to {now.strftime('%Y-%m-%d %H:%M:%S %z')}")
+    
+    # 读取 meme_kols.csv 文件
+    meme_kols = {}
+    try:
+        with open('./data/meme_kols.csv', 'r') as f:
+            next(f)  # 跳过标题行
+            for line in f:
+                username, influence = line.strip().split(',')[:2]
+                meme_kols[username.lower()] = influence
+        print(f"Loaded {len(meme_kols)} KOL records")
+    except Exception as e:
+        print(f"Error reading meme_kols.csv: {e}")
+        meme_kols = {}  # 如果文件读取失败，使用空字典
 
     try:
         # 首先检查数据库中是否有数据
