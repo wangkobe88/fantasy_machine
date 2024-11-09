@@ -404,7 +404,7 @@ def save_raw_data(data, prefix="tweets"):
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
         
-        # 生成带时间戳的文件名
+        # ��带时间戳的文件名
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{data_dir}/{prefix}_{timestamp}.json"
         
@@ -438,9 +438,11 @@ def add_all_tweets():
             return jsonify({"error": "Invalid JSON data received"}), 400
 
         output_list = data.get('output', [])
-        if not isinstance(output_list, list):
-            print("Invalid output data - expected a list")
-            return jsonify({"error": "Invalid output data structure"}), 400
+        rune_names = data.get('rune_names', [])  # 获取检索词列表
+        
+        if not isinstance(output_list, list) or not isinstance(rune_names, list):
+            print("Invalid data structure - expected lists for output and rune_names")
+            return jsonify({"error": "Invalid data structure"}), 400
 
         conn = connect_db()
         cursor = conn.cursor()
@@ -450,7 +452,7 @@ def add_all_tweets():
         error_tweets = []
         
         # 遍历输出列表中的每个项
-        for item_index, item in enumerate(output_list):
+        for item_index, (item, keyword) in enumerate(zip(output_list, rune_names)):
             try:
                 free_busy = item.get('data', {}).get('freeBusy')
                 
@@ -464,6 +466,7 @@ def add_all_tweets():
                     continue
 
                 print(f"Found {len(tweets)} tweets in item {item_index + 1}")
+                print(f"Using keyword: {keyword}")
 
                 for tweet_index, tweet in enumerate(tweets):
                     try:
@@ -477,20 +480,33 @@ def add_all_tweets():
                         userid = str(tweet.get('user', {}).get('rest_id', ''))
 
                         print(f"Processing tweet {tweet_index + 1}/{len(tweets)}")
-                        print(f"Tweet ID: {tweet_id}, Created At: {created_at}, User ID: {userid}")
+                        print(f"Tweet ID: {tweet_id}, Created At: {created_at}, User ID: {userid}, Keyword: {keyword}")
 
-                        # Check if tweet exists
-                        cursor.execute('SELECT tweetID FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
+                        # 检查推文是否存在并获取其keywords值
+                        cursor.execute('SELECT keywords FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
                         result = cursor.fetchone()
 
                         if result:
-                            print(f"Tweet {tweet_id} already exists, skipping")
-                            skipped_tweets.append(tweet_id)
+                            existing_keywords = result[0]
+                            if existing_keywords is None or existing_keywords.strip() == '':
+                                # 如果推文存在但keywords为空，更新keywords
+                                print(f"Tweet {tweet_id} exists with empty keywords, updating...")
+                                cursor.execute('''
+                                    UPDATE tweets_v2 
+                                    SET keywords = ? 
+                                    WHERE tweetID = ?
+                                ''', (keyword, tweet_id))
+                                print(f"Updated keywords for tweet {tweet_id}")
+                                skipped_tweets.append(f"{tweet_id} (keywords updated)")
+                            else:
+                                print(f"Tweet {tweet_id} already exists with keywords: {existing_keywords}, skipping")
+                                skipped_tweets.append(tweet_id)
                         else:
+                            # 如果推文不存在，插入新记录
                             cursor.execute('''
-                                INSERT INTO tweets_v2 (tweetID, Content, CreatedAt, userid) 
-                                VALUES (?, ?, ?, ?)
-                            ''', (tweet_id, content, created_at, userid))
+                                INSERT INTO tweets_v2 (tweetID, Content, CreatedAt, userid, keywords) 
+                                VALUES (?, ?, ?, ?, ?)
+                            ''', (tweet_id, content, created_at, userid, keyword))
                             print(f"Tweet {tweet_id} inserted successfully")
                             inserted_tweets.append(tweet_id)
 
