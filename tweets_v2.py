@@ -238,9 +238,9 @@ def get_tweets_formated():
     print(f"Querying for tweets from {two_days_ago.strftime('%Y-%m-%d %H:%M:%S')} to {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
-        # Fetch the latest 500 tweets
+        # 修改查询以包含 keywords
         query = """
-        SELECT Content, CreatedAt FROM tweets_v2 
+        SELECT Content, CreatedAt, keywords FROM tweets_v2 
         ORDER BY CreatedAt DESC
         LIMIT 500
         """
@@ -254,26 +254,15 @@ def get_tweets_formated():
         for row in rows:
             content = json.loads(row[0])
             created_at = row[1]
-            
-            # 添加调试日志
-            print(f"\nProcessing tweet:")
-            print(f"Created at (raw): {created_at}")
+            keywords = row[2] or "未知"  # 如果 keywords 为 None，使用 "未知"
+            content['keywords'] = keywords  # 将 keywords 添加到 content 字典中
             
             try:
-                # 解析推文创建时间
                 tweet_date_obj = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
                 tweet_date_obj = tweet_date_obj.replace(tzinfo=ZoneInfo("UTC"))
                 
-                print(f"Parsed date: {tweet_date_obj}")
-                print(f"Two days ago: {two_days_ago}")
-                print(f"Now: {now}")
-                
-                # 检查是否在最近48小时内
                 if two_days_ago <= tweet_date_obj <= now:
-                    print("Tweet within 48 hours - adding to filtered list")
                     filtered_tweets.append(content)
-                else:
-                    print("Tweet outside 48-hour range - skipping")
             except ValueError as e:
                 print(f"Error parsing date: {e}")
                 continue
@@ -344,16 +333,15 @@ def get_tweets_formated():
 
         for tweet_data in filtered_tweets:
             full_text = tweet_data.get('full_text', '')
-            # 解码 full_text
             full_text = full_text.encode().decode('unicode_escape')
             
             name = tweet_data['user']['name']
-            # 解码 name
             name = name.encode().decode('unicode_escape')
             
             screen_name = tweet_data['user']['screen_name']
             created_at = tweet_data['created_at']
             tweet_id = tweet_data['rest_id']
+            keywords = tweet_data.get('keywords', '未知')  # 获取 keywords
             
             create_time_obj = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
             create_time_obj = create_time_obj.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Asia/Shanghai"))
@@ -361,7 +349,6 @@ def get_tweets_formated():
             
             link = f"https://twitter.com/{screen_name}/status/{tweet_id}"
             
-            # 获取影响力信息并转换，添加更多错误处理
             try:
                 influence = meme_kols.get(screen_name.lower(), "未知")
                 influence_level = get_influence_level(influence)
@@ -375,6 +362,7 @@ def get_tweets_formated():
                 <div class="tweet-info">
                     <p>👤 作者: {name} @{screen_name}</p>
                     <p>🕒 时间: {create_time_cn}</p>
+                    <p>🔍 检索词: {keywords}</p>
                     <p>🔗 链接: <a href="{link}" target="_blank" class="tweet-link">{link}</a></p>
                     <p>🌟 影响力: {influence_level}</p>
                 </div>
@@ -404,7 +392,7 @@ def save_raw_data(data, prefix="tweets"):
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
         
-        # ��带时间戳的文件名
+        # 带时间戳的文件名
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"{data_dir}/{prefix}_{timestamp}.json"
         
