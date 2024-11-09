@@ -28,74 +28,6 @@ def connect_db():
     return conn
 
 
-# API to insert multiple tweets into the database
-@app.route('/add_tweets', methods=['POST'])
-def add_tweets():
-    print("add_tweets function called")
-    try:
-        data = request.json
-        if not data:
-            print("No JSON data received")
-            return jsonify({"error": "No JSON data received"}), 400
-
-        print(f"Received {len(data)} tweets")
-        conn = connect_db()
-        cursor = conn.cursor()
-
-        inserted_tweets = []
-        skipped_tweets = []
-
-        for index, tweet in enumerate(data):
-            try:
-                print(f"Processing tweet {index + 1}/{len(data)}")
-                tweet_id = tweet['rest_id']
-                content = json.dumps(tweet)
-                created_at = tweet.get('created_at')
-                # 从tweet中提取userid
-                userid = str(tweet.get('user', {}).get('id_str', ''))
-
-                print(f"Tweet ID: {tweet_id}, Created At: {created_at}, User ID: {userid}")
-
-                # Check if a tweet with the same tweetID exists
-                cursor.execute('SELECT tweetID FROM tweets_v2 WHERE tweetID = ?', (tweet_id,))
-                result = cursor.fetchone()
-
-                if result:
-                    print(f"Tweet {tweet_id} already exists, skipping")
-                    skipped_tweets.append(tweet_id)
-                else:
-                    cursor.execute('''
-                        INSERT INTO tweets_v2 (tweetID, Content, CreatedAt, userid) 
-                        VALUES (?, ?, ?, ?)
-                    ''', (tweet_id, content, created_at, userid))
-                    print(f"Tweet {tweet_id} inserted successfully")
-                    inserted_tweets.append(tweet_id)
-            except KeyError as ke:
-                print(f"KeyError processing tweet {index + 1}: {ke}")
-                print(f"Tweet data: {tweet}")
-                return jsonify({"error": f"Missing key in tweet data: {ke}"}), 400
-            except Exception as e:
-                print(f"Error inserting tweet {tweet.get('rest_id', 'Unknown ID')}: {str(e)}")
-                print(f"Tweet data: {tweet}")
-                conn.rollback()
-                return jsonify({"error": f"Error inserting tweet {tweet.get('rest_id', 'Unknown ID')}: {str(e)}"}), 500
-
-        conn.commit()
-        conn.close()
-
-        print(f"Operation completed. Inserted: {len(inserted_tweets)}, Skipped: {len(skipped_tweets)}")
-        return jsonify({
-            "inserted": inserted_tweets, 
-            "skipped": skipped_tweets,
-            "total_processed": len(data),
-            "total_inserted": len(inserted_tweets),
-            "total_skipped": len(skipped_tweets)
-        }), 200
-
-    except Exception as e:
-        print(f"Unexpected error in add_tweets: {str(e)}")
-        return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
-
 def get_influence_level(influence):
     try:
         influence_value = int(influence)
@@ -541,6 +473,136 @@ def add_all_tweets():
         print(f"Unexpected error in add_all_tweets: {str(e)}")
         print(f"Full traceback: {traceback.format_exc()}")
         return jsonify({"error": f"Unexpected error: {str(e)}"}), 500
+
+
+def normalize_keyword(keyword):
+    """标准化关键词：将 • 替换为空格"""
+    if keyword:
+        return keyword.replace('•', ' ')
+    return keyword
+
+@app.route('/analyze_keywords', methods=['GET'])
+def analyze_keywords():
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # 使用 UTC 时间
+    now = datetime.now(ZoneInfo("UTC"))
+    
+    # 定义时间范围
+    time_ranges = {
+        '3d': now - timedelta(days=3),
+        '7d': now - timedelta(days=7),
+        '15d': now - timedelta(days=15),
+        '30d': now - timedelta(days=30),
+        '90d': now - timedelta(days=90)
+    }
+    
+    try:
+        # 获取所有推文数据
+        query = """
+        SELECT Content, CreatedAt, keywords 
+        FROM tweets_v2 
+        WHERE keywords IS NOT NULL 
+        AND CreatedAt IS NOT NULL
+        """
+        cursor.execute(query)
+        rows = cursor.fetchall()
+        
+        # 初始化结果字典
+        stats = {}
+        
+        # 处理每条推文
+        for row in rows:
+            try:
+                content = json.loads(row[0])
+                created_at = row[1]
+                keyword = normalize_keyword(row[2])
+                
+                if not keyword:
+                    continue
+                
+                # 初始化关键词统计
+                if keyword not in stats:
+                    stats[keyword] = {
+                        '3d': {'posts': 0, 'likes': 0},
+                        '7d': {'posts': 0, 'likes': 0},
+                        '15d': {'posts': 0, 'likes': 0},
+                        '30d': {'posts': 0, 'likes': 0},
+                        '90d': {'posts': 0, 'likes': 0}
+                    }
+                
+                # 解析推文日期
+                tweet_date = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
+                tweet_date_utc = tweet_date.astimezone(ZoneInfo("UTC"))
+                
+                # 获取点赞数
+                favorite_count = int(content.get('favorite_count', 0))
+                
+                # 更新各时间段的统计数据
+                for period, start_date in time_ranges.items():
+                    if tweet_date_utc >= start_date:
+                        stats[keyword][period]['posts'] += 1
+                        stats[keyword][period]['likes'] += favorite_count
+                
+            except Exception as e:
+                print(f"Error processing row: {str(e)}")
+                continue
+        
+        # 格式化结果
+        formatted_results = []
+        for keyword, periods in stats.items():
+            result = {
+                'keyword': keyword,
+                'statistics': {
+                    '3_days': {
+                        'post_count': periods['3d']['posts'],
+                        'total_likes': periods['3d']['likes']
+                    },
+                    '7_days': {
+                        'post_count': periods['7d']['posts'],
+                        'total_likes': periods['7d']['likes']
+                    },
+                    '15_days': {
+                        'post_count': periods['15d']['posts'],
+                        'total_likes': periods['15d']['likes']
+                    },
+                    '30_days': {
+                        'post_count': periods['30d']['posts'],
+                        'total_likes': periods['30d']['likes']
+                    },
+                    '90_days': {
+                        'post_count': periods['90d']['posts'],
+                        'total_likes': periods['90d']['likes']
+                    }
+                }
+            }
+            formatted_results.append(result)
+        
+        # 按90天内的发帖量降序排序
+        formatted_results.sort(
+            key=lambda x: (
+                x['statistics']['90_days']['post_count'],
+                x['statistics']['90_days']['total_likes']
+            ),
+            reverse=True
+        )
+        
+        return jsonify({
+            'updated_at': now.strftime('%Y-%m-%d %H:%M:%S UTC'),
+            'total_keywords': len(formatted_results),
+            'results': formatted_results
+        }), 200
+        
+    except Exception as e:
+        print(f"Error in analyze_keywords: {str(e)}")
+        print(f"Full traceback: {traceback.format_exc()}")
+        return jsonify({
+            'error': str(e),
+            'timestamp': now.strftime('%Y-%m-%d %H:%M:%S UTC')
+        }), 500
+    finally:
+        conn.close()
 
 
 if __name__ == '__main__':
