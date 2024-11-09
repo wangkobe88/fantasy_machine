@@ -217,56 +217,70 @@ def get_tweets_formated():
     conn = connect_db()
     cursor = conn.cursor()
 
-    # 使用 UTC 时间，并确保包含时区信息
+    # 使用 UTC 时间
     now = datetime.now(ZoneInfo("UTC"))
     two_days_ago = (now - timedelta(hours=48))
     
     print(f"Querying for tweets from {two_days_ago.strftime('%Y-%m-%d %H:%M:%S %z')} to {now.strftime('%Y-%m-%d %H:%M:%S %z')}")
 
     try:
-        # 修改查询以正确排序日期
+        # 首先检查数据库中是否有数据
+        cursor.execute("SELECT COUNT(*) FROM tweets_v2")
+        total_count = cursor.fetchone()[0]
+        print(f"Total tweets in database: {total_count}")
+
+        # 修改查询语句，先获取最新的推文进行检查
+        check_query = """
+        SELECT Content, CreatedAt, keywords FROM tweets_v2 
+        ORDER BY rowid DESC
+        LIMIT 5
+        """
+        cursor.execute(check_query)
+        check_rows = cursor.fetchall()
+        
+        print("\nChecking most recent tweets by rowid:")
+        for i, row in enumerate(check_rows):
+            content = json.loads(row[0])
+            created_at = row[1]
+            keywords = row[2]
+            print(f"Tweet {i+1}: Created at {created_at}, Keywords: {keywords}")
+
+        # 主查询
         query = """
         SELECT Content, CreatedAt, keywords FROM tweets_v2 
-        WHERE datetime(substr(CreatedAt, 1, 19)) IS NOT NULL
-        ORDER BY datetime(substr(CreatedAt, 1, 19)) DESC
+        WHERE CreatedAt IS NOT NULL
+        ORDER BY rowid DESC
         LIMIT 500
         """
         cursor.execute(query)
         rows = cursor.fetchall()
 
-        print(f"Fetched {len(rows)} tweets")
+        print(f"\nFetched {len(rows)} tweets for processing")
 
         # 修改日期过滤逻辑
         filtered_tweets = []
         for row in rows:
-            content = json.loads(row[0])
-            created_at = row[1]
-            keywords = row[2] or "未知"
-            content['keywords'] = keywords
-            
             try:
-                tweet_date_obj = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
-                
-                # 添加调试信息
-                print(f"\nComparing dates:")
-                print(f"Tweet date: {tweet_date_obj} ({tweet_date_obj.tzinfo})")
-                print(f"Two days ago: {two_days_ago} ({two_days_ago.tzinfo})")
-                print(f"Now: {now} ({now.tzinfo})")
-                
-                # 确保所有时间都在 UTC
-                tweet_date_utc = tweet_date_obj.astimezone(ZoneInfo("UTC"))
-                
-                # 修改时间比较逻辑，处理未来日期
-                if tweet_date_utc <= now and tweet_date_utc >= two_days_ago:
+                content = json.loads(row[0])
+                created_at = row[1]
+                keywords = row[2] or "未知"
+                content['keywords'] = keywords
+
+                # 解析日期并进行比较
+                tweet_date = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
+                tweet_date_utc = tweet_date.astimezone(ZoneInfo("UTC"))
+
+                print(f"\nProcessing tweet date: {tweet_date_utc}")
+                print(f"Comparing with range: {two_days_ago} to {now}")
+
+                if two_days_ago <= tweet_date_utc <= now:
                     filtered_tweets.append(content)
-                    print(f"Tweet included: {created_at}")
+                    print("Tweet included")
                 else:
-                    print(f"Tweet excluded: {created_at}")
-                    print(f"Tweet UTC: {tweet_date_utc}")
-                    print(f"Range: {two_days_ago} to {now}")
-            except ValueError as e:
-                print(f"Error parsing date: {e}")
-                print(f"Problem date string: {created_at}")
+                    print("Tweet excluded")
+
+            except Exception as e:
+                print(f"Error processing row: {e}")
                 continue
 
         print(f"\nFiltered to {len(filtered_tweets)} tweets within last 48 hours")
