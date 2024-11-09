@@ -221,20 +221,6 @@ def get_tweets_formated():
     now = datetime.now(ZoneInfo("UTC"))
     two_days_ago = now - timedelta(hours=48)
     
-    # 读取 meme_kols.csv 文件
-    meme_kols = {}
-    try:
-        with open('./data/meme_kols.csv', 'r') as f:
-            next(f)  # 跳过标题行
-            for line in f:
-                username, influence = line.strip().split(',')[:2]
-                meme_kols[username.lower()] = influence
-    except Exception as e:
-        print(f"Error reading meme_kols.csv: {e}")
-        meme_kols = {}  # 如果文件读取失败，使用空字典
-    
-    print(f"Loaded {len(meme_kols)} KOL records")
-    
     print(f"Querying for tweets from {two_days_ago.strftime('%Y-%m-%d %H:%M:%S')} to {now.strftime('%Y-%m-%d %H:%M:%S')}")
 
     try:
@@ -254,17 +240,22 @@ def get_tweets_formated():
         for row in rows:
             content = json.loads(row[0])
             created_at = row[1]
-            keywords = row[2] or "未知"  # 如果 keywords 为 None，使用 "未知"
-            content['keywords'] = keywords  # 将 keywords 添加到 content 字典中
+            keywords = row[2] or "未知"
+            content['keywords'] = keywords
             
             try:
+                # 问题可能出在这里：需要确保时区信息正确
                 tweet_date_obj = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
-                tweet_date_obj = tweet_date_obj.replace(tzinfo=ZoneInfo("UTC"))
+                # 不需要替换时区，因为 strptime 已经包含了时区信息
+                # tweet_date_obj = tweet_date_obj.replace(tzinfo=ZoneInfo("UTC"))
                 
                 if two_days_ago <= tweet_date_obj <= now:
                     filtered_tweets.append(content)
+                else:
+                    print(f"Tweet date {tweet_date_obj} outside range: {two_days_ago} to {now}")
             except ValueError as e:
                 print(f"Error parsing date: {e}")
+                print(f"Problem date string: {created_at}")
                 continue
 
         print(f"\nFiltered to {len(filtered_tweets)} tweets within last 48 hours")
