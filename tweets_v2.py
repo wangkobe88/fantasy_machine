@@ -217,11 +217,11 @@ def get_tweets_formated():
     conn = connect_db()
     cursor = conn.cursor()
 
-    # 使用 UTC 时间
+    # 使用 UTC 时间，并确保包含时区信息
     now = datetime.now(ZoneInfo("UTC"))
-    two_days_ago = now - timedelta(hours=48)
+    two_days_ago = (now - timedelta(hours=48))
     
-    print(f"Querying for tweets from {two_days_ago.strftime('%Y-%m-%d %H:%M:%S')} to {now.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Querying for tweets from {two_days_ago.strftime('%Y-%m-%d %H:%M:%S %z')} to {now.strftime('%Y-%m-%d %H:%M:%S %z')}")
 
     try:
         # 修改查询以包含 keywords
@@ -244,15 +244,24 @@ def get_tweets_formated():
             content['keywords'] = keywords
             
             try:
-                # 问题可能出在这里：需要确保时区信息正确
                 tweet_date_obj = datetime.strptime(created_at, "%a %b %d %H:%M:%S %z %Y")
-                # 不需要替换时区，因为 strptime 已经包含了时区信息
-                # tweet_date_obj = tweet_date_obj.replace(tzinfo=ZoneInfo("UTC"))
                 
-                if two_days_ago <= tweet_date_obj <= now:
+                # 添加调试信息
+                print(f"\nComparing dates:")
+                print(f"Tweet date: {tweet_date_obj} ({tweet_date_obj.tzinfo})")
+                print(f"Two days ago: {two_days_ago} ({two_days_ago.tzinfo})")
+                print(f"Now: {now} ({now.tzinfo})")
+                
+                # 确保所有时间都在 UTC
+                tweet_date_utc = tweet_date_obj.astimezone(ZoneInfo("UTC"))
+                
+                if two_days_ago <= tweet_date_utc <= now:
                     filtered_tweets.append(content)
+                    print(f"Tweet included: {created_at}")
                 else:
-                    print(f"Tweet date {tweet_date_obj} outside range: {two_days_ago} to {now}")
+                    print(f"Tweet excluded: {created_at}")
+                    print(f"Tweet UTC: {tweet_date_utc}")
+                    print(f"Range: {two_days_ago} to {now}")
             except ValueError as e:
                 print(f"Error parsing date: {e}")
                 print(f"Problem date string: {created_at}")
