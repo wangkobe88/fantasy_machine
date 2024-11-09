@@ -224,10 +224,11 @@ def get_tweets_formated():
     print(f"Querying for tweets from {two_days_ago.strftime('%Y-%m-%d %H:%M:%S %z')} to {now.strftime('%Y-%m-%d %H:%M:%S %z')}")
 
     try:
-        # 修改查询以包含 keywords
+        # 修改查询以正确排序日期
         query = """
         SELECT Content, CreatedAt, keywords FROM tweets_v2 
-        ORDER BY CreatedAt DESC
+        WHERE datetime(substr(CreatedAt, 1, 19)) IS NOT NULL
+        ORDER BY datetime(substr(CreatedAt, 1, 19)) DESC
         LIMIT 500
         """
         cursor.execute(query)
@@ -255,7 +256,8 @@ def get_tweets_formated():
                 # 确保所有时间都在 UTC
                 tweet_date_utc = tweet_date_obj.astimezone(ZoneInfo("UTC"))
                 
-                if two_days_ago <= tweet_date_utc <= now:
+                # 修改时间比较逻辑，处理未来日期
+                if tweet_date_utc <= now and tweet_date_utc >= two_days_ago:
                     filtered_tweets.append(content)
                     print(f"Tweet included: {created_at}")
                 else:
